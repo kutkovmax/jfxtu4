@@ -10,21 +10,18 @@ import javafx.scene.layout.HBox;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.scene.layout.VBox;
+import javafx.scene.image.Image;
+import javafx.scene.text.Font;
+import ru.kutkovmax.jfxtu4.controller.MachineController;
+import ru.kutkovmax.jfxtu4.model.Tape;
+import ru.kutkovmax.jfxtu4.view.TapeView;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-record Instruction(int q1, String a, String v, int q2){}
-
-class Launcher {
-    public static void main(String[] args) {
-        Main.main(args);
-    }
-}
+import java.util.*;
 
 public class Main extends Application {
+    private static final String APP_NAME = "Эмулятор машины Тьюринга в четвёрках";
+
+    private static final String VERSION = "0.1.0";
 
     public static void main(String[] args) {
         launch();
@@ -33,88 +30,59 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) {
 
+//        List<Instruction> instrList = new ArrayList<Instruction>();
+//        Map<String, Integer> stateToId = new HashMap<>();
 
-        List<Instruction> instrList = new ArrayList<Instruction>();
-        Map<String, Integer> stateToId = new HashMap<>();
+        Font.loadFont(getClass().getResourceAsStream("/fonts/Inter-Regular.ttf"), 13);
+        Font.loadFont(getClass().getResourceAsStream("/fonts/Inter-Bold.ttf"), 18);
+        Font.loadFont(getClass().getResourceAsStream("/fonts/JetBrainsMono-Regular.ttf"), 14);
 
 
-
-        Text title = new Text("Эмулятор машины Тьюринга в четвёрках, v0.0.1");
+        Text title = new Text(APP_NAME);
+        title.getStyleClass().add("title");
         Button helpButton = new Button("?");
         HBox titleBox = new HBox(title,helpButton);
-        TextField tapeInput = new TextField();
+        Tape tape = new Tape("");
+        TapeView tapeView = new TapeView(tape);
+
+
         Button startButton = new Button("Старт");
+        Button backToEditButton = new Button("Вернуться к правке");
+        Button quickButton = new Button("Быстро");
+        Button stepButton = new Button("Шаг");
+        startButton.managedProperty().bind(startButton.visibleProperty());
+        backToEditButton.managedProperty().bind(backToEditButton.visibleProperty());
+        quickButton.managedProperty().bind(quickButton.visibleProperty());
+        stepButton.managedProperty().bind(stepButton.visibleProperty());
+        stepButton.setVisible(false);
+        quickButton.setVisible(false);
+        backToEditButton.setVisible(false);
+        HBox controlBox = new HBox(backToEditButton, quickButton, stepButton, startButton);
+        controlBox.getStyleClass().add("control-panel");
+        controlBox.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
 
-        HBox controlBox = new HBox(startButton);
         TextArea programInput = new TextArea();
-        VBox mainContentBox = new VBox(titleBox, tapeInput, controlBox,programInput);
+        VBox mainContentBox = new VBox(titleBox, tapeView, controlBox, programInput);
+
         Scene scene = new Scene(mainContentBox);
+        String css = Objects.requireNonNull(getClass().getResource("/styles/style.css")).toExternalForm();
+        scene.getStylesheets().add(css);
+        stage.getIcons().add(new Image(Objects.requireNonNull(getClass().getResourceAsStream("/images/app-icon.png"))));
+
+        new MachineController(
+                tapeView,
+                programInput,
+                startButton,
+                backToEditButton,
+                quickButton,
+                stepButton
+        );
+
+        stage.setTitle(APP_NAME + " v" + VERSION);
         stage.setScene(scene);
-        stage.setWidth (300);
-        stage.setHeight(300);
+        stage.setMinWidth(500);
+        stage.setMinHeight(400);
         stage.show();
-
-        startButton.setOnAction((event) -> {
-            String[] instructions = programInput.getText().split("\n");
-
-            for (String instruction: instructions) {
-                if (instruction.isEmpty()) {
-                    continue;
-                }
-                String[] fuck = instruction.split(",");
-                if (fuck.length != 4) {
-                    continue; // error
-                }
-
-                int q1 = stateToId.computeIfAbsent(fuck[0], k -> stateToId.size());
-                String a = fuck[1];
-                String v = fuck[2];
-                int q2 = stateToId.computeIfAbsent(fuck[3], k -> stateToId.size());
-                instrList.add(new Instruction(q1, a, v, q2));
-            }
-
-            for (Instruction instr : instrList){
-                System.out.println(instr.q1() + " " + instr.a() + " " + instr.v() + " " + instr.q2());
-            }
-
-
-            int state = stateToId.get("0");
-            ArrayList<String> tape = new ArrayList<String>();
-//            tape.add(" ");
-            tapeInput.getText().chars()
-                    .mapToObj(c -> String.valueOf((char) c))
-                    .forEach(tape::add);
-            int head = tapeInput.getText().length() -1;
-            // loop
-            boolean isFinish = false;
-            while (!isFinish){
-
-                System.out.print("\n");
-                for (String cell : tape){
-                    System.out.print(cell + " ");
-                }
-
-                String symbol = tape.get(head);
-                for (Instruction instr : instrList){
-                    if (instr.q1() == state && instr.a().equals(symbol)){
-                        if (instr.v().equals(">")){
-                            head++;
-                        }else if (instr.v().equals("<")){
-                            head--;
-                        }else if(instr.v().equals("#")){
-                            isFinish = true;
-                            break;
-                        }else{
-                            tape.set(head, instr.v());
-                        }
-                        state = instr.q2();
-                        break;
-                    }
-                }
-                tapeInput.setText(String.join("", tape));
-            }
-            // loop
-        });
     }
 
 }
