@@ -33,7 +33,7 @@ public class Tape {
 
     public void moveLeft(){
         if (head == 0) {
-            throw new IllegalStateException("Tape error: Left border reached.");
+            throw new MachineException(MachineException.Type.HEAD_OUT_OF_BOUNDS);
         }
         head--;
     }
@@ -50,7 +50,6 @@ public class Tape {
     }
 
     public void moveHeadToEndOfInput() {
-        System.out.println("MOVE HEAD");
         int lastNonBlank = -1;
 
         for (int i = 0; i < cells.size(); i++) {
@@ -61,7 +60,6 @@ public class Tape {
 
         head = lastNonBlank + 1;
         ensureCapacity();
-        System.out.println("head = " + head);
     }
 
     // -- ui accessors --

@@ -21,7 +21,11 @@ public class TuringMachine {
 
         if (instruction == null) {
             stalled = true;
-            return;
+            throw new MachineException(
+                    MachineException.Type.UNDEFINED_TRANSITION,
+                    currentStateId,
+                    String.valueOf(currentSymbol)
+            );
         }
 
         char action = instruction.symbolToWrite();

@@ -99,9 +99,11 @@ class ProgramParserTest {
         ParsingException exception = assertThrows(ParsingException.class, () -> ProgramParser.parse("0, ,rep"));
         assertEquals(ParsingException.ErrorType.INVALID_FORMAT, exception.getType());
         assertEquals(1, exception.getLineNumber());
+        assertArrayEquals(new Object[]{"0, ,rep"}, exception.getArgs());
 
         ParsingException exception2 = assertThrows(ParsingException.class, () -> ProgramParser.parse("0,0,1,2,stop"));
         assertEquals(ParsingException.ErrorType.INVALID_FORMAT, exception2.getType());
+        assertArrayEquals(new Object[]{"0,0,1,2,stop"}, exception2.getArgs());
     }
 
     @Test
@@ -128,5 +130,6 @@ class ProgramParserTest {
         ParsingException exception = assertThrows(ParsingException.class, () -> ProgramParser.parse(duplicateCode));
         assertEquals(ParsingException.ErrorType.DUPLICATE_TRANSITION, exception.getType());
         assertEquals(2, exception.getLineNumber());
+        assertArrayEquals(new Object[]{"0", '0'}, exception.getArgs());
     }
 }

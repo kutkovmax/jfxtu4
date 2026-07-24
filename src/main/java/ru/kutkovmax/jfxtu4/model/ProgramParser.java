@@ -65,7 +65,7 @@ public class ProgramParser {
                 String qNextStr = normalizeState(parts[3]);
 
                 if (qStr.isEmpty() || qNextStr.isEmpty()) {
-                    throw new ParsingException(ParsingException.ErrorType.MISSING_STATE_NAME, lineNumber, token);
+                    throw new ParsingException(ParsingException.ErrorType.MISSING_STATE_NAME, lineNumber, qStr.isEmpty() ? qNextStr : qStr);
                 }
 
                 if (aStr.length() > 1 || vStr.length() > 1) {
@@ -84,7 +84,7 @@ public class ProgramParser {
 
                 TransitionKey key = new TransitionKey(qId, symbol);
                 if (transitionTable.containsKey(key)) {
-                    throw new ParsingException(ParsingException.ErrorType.DUPLICATE_TRANSITION, lineNumber, token);
+                    throw new ParsingException(ParsingException.ErrorType.DUPLICATE_TRANSITION, lineNumber, qStr, symbol);
                 }
 
                 transitionTable.put(key, new TransitionResult(qNextId, action));

@@ -12,6 +12,7 @@ public class TapeView extends HBox {
     private static final double CELL_SIZE = 40;
     private static final double CELL_WIDTH = CELL_SIZE + SPACING;
     private int lastVisibleCells = 0;
+    private boolean editable = true;
 
     public TapeView(Tape tape) {
         this.tape = tape;
@@ -42,12 +43,14 @@ public class TapeView extends HBox {
             TextField cell = new TextField(String.valueOf(tape.readAt(absoluteIndex)));
             cell.setPrefSize(CELL_SIZE, CELL_SIZE);
             cell.getStyleClass().add("tape-cell");
+            cell.setEditable(this.editable);
 
-            if (absoluteIndex == tape.getHeadPosition()) {
+            if (!editable && absoluteIndex == tape.getHeadPosition()) {
                 cell.getStyleClass().add("head-active");
             }
 
             cell.setOnKeyPressed(event -> {
+                if (!editable) return;
                 if (event.getCode() == KeyCode.RIGHT) {
                     handleMoveRight(visualIndex);
                 } else if (event.getCode() == KeyCode.LEFT) {
@@ -60,6 +63,7 @@ public class TapeView extends HBox {
             });
 
             cell.textProperty().addListener((obs, oldVal, newVal) -> {
+                if (!editable) return;
                 if (!newVal.isEmpty()) {
                     char c = newVal.charAt(newVal.length() - 1);
                     tape.writeAt(absoluteIndex, c);
@@ -75,6 +79,12 @@ public class TapeView extends HBox {
     public Tape getTape(){
         return tape;
     }
+
+    public void setEditable(boolean editable) {
+        this.editable = editable;
+        renderTape();
+    }
+
 
     private void handleMoveRight(int currentVisualIndex) {
         if (currentVisualIndex == getVisibleCells() - 1) {

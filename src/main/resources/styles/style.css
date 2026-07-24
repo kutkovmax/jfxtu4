@@ -112,3 +112,51 @@
 .button:default:hover {
     -fx-background-color: -accent-hover;
 }
+
+
+.status-label {
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: 12px;
+    -fx-padding: 4 10;
+    -fx-background-radius: 4;
+    -fx-border-radius: 4;
+    -fx-border-width: 1px;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: transparent;
+}
+
+.status-label.status-error {
+    -fx-background-color: #2b1d1f;
+    -fx-border-color: #8e2a2a;
+    -fx-text-fill: #ff7b72;
+}
+
+.status-label.status-warning {
+    -fx-background-color: #2b2318;
+    -fx-border-color: #8c6b2d;
+    -fx-text-fill: #f2cc60;
+}
+
+.status-label.status-info {
+    -fx-background-color: #172b1e;
+    -fx-border-color: #236e33;
+    -fx-text-fill: #56d364;
+}
+
+
+.tape-cell {
+    -fx-alignment: center;
+    -fx-border-color: -border-color;
+    -fx-border-width: 2px;
+    -fx-border-radius: 3px;
+    -fx-background-radius: 3px;
+}
+
+
+.tape-cell.head-active {
+    -fx-border-color: #f39c12;
+    -fx-background-color: #3a2a00;
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+}
