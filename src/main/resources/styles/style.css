@@ -30,7 +30,6 @@
     -fx-font-size: 16px;
 }
 
-
 .tape-cell.head-active {
     -fx-background-color: #284B72;
     -fx-border-color: #ffffff;
@@ -71,7 +70,6 @@
     -fx-background-color: #4a75a3;
 }
 
-
 .status-label {
     -fx-font-family: "Consolas", "Courier New", monospace;
     -fx-font-size: 14px;
@@ -105,4 +103,66 @@
 
 .code-editor .text {
     -fx-fill: #ffffff;
+}
+
+.help-scroll {
+    -fx-background-color: transparent;
+    -fx-background: #1e1e1e;
+    -fx-border-color: #555555;
+    -fx-border-width: 1px;
+}
+
+.help-scroll > .viewport {
+    -fx-background-color: #1e1e1e;
+}
+
+.help-scroll .label {
+    -fx-text-fill: #d0d0d0;
+    -fx-font-size: 14px;
+}
+
+.help-back-link {
+    -fx-text-fill: #64b5f6;
+    -fx-border-color: transparent;
+    -fx-underline: false;
+    -fx-font-size: 13px;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+}
+
+.help-back-link:hover {
+    -fx-text-fill: #90caf9;
+    -fx-underline: true;
+}
+
+.help-back-link:visited {
+    -fx-text-fill: #64b5f6;
+}
+
+.help-title {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffffff;
+    -fx-padding: 6 0 6 0;
+}
+
+.help-header {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #4a75a3;
+    -fx-padding: 10 0 2 0;
+}
+
+.help-scroll .scroll-bar:vertical,
+.help-scroll .scroll-bar:horizontal {
+    -fx-background-color: #1e1e1e;
+}
+
+.help-scroll .scroll-bar .thumb {
+    -fx-background-color: #3c3f41;
+    -fx-background-radius: 4px;
+}
+
+.help-scroll .scroll-bar .thumb:hover {
+    -fx-background-color: #555555;
 }

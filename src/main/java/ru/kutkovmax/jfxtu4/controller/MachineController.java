@@ -1,10 +1,9 @@
 package ru.kutkovmax.jfxtu4.controller;
 
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextArea;
+import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import ru.kutkovmax.jfxtu4.model.*;
 import ru.kutkovmax.jfxtu4.view.TapeView;
@@ -24,6 +23,30 @@ public class MachineController {
     @FXML private Button langButton;
     @FXML private Button helpButton;
 
+    @FXML private VBox mainContent;
+    @FXML private ScrollPane helpContainer;
+
+
+    @FXML private Hyperlink githubLink;
+    @FXML private Hyperlink inspiredLink;
+    @FXML private Label helpMainTitle;
+    @FXML private Label helpAboutHeader;
+    @FXML private Label helpAboutText;
+    @FXML private Label helpAuthor;
+    @FXML private Label helpSource;
+    @FXML private Label helpInspired;
+    @FXML private Label helpManualTitle;
+    @FXML private Label helpManualFormat;
+    @FXML private Label helpManualQ;
+    @FXML private Label helpManualA;
+    @FXML private Label helpManualV;
+    @FXML private Label helpManualQP;
+    @FXML private Label helpManualCmdRight;
+    @FXML private Label helpManualCmdLeft;
+    @FXML private Label helpManualCmdStay;
+    @FXML private Label helpManualCmdHalt;
+
+
     @FXML private StackPane tapeContainer;
     @FXML private TextArea programInput;
     @FXML private Button startButton;
@@ -40,6 +63,8 @@ public class MachineController {
 
     private String currentStatusKey;
     private Object[] currentStatusArgs;
+
+    private boolean isHelpVisible = false;
 
     @FXML
     public void initialize() {
@@ -58,6 +83,20 @@ public class MachineController {
         quickButton.setOnAction(event -> handleQuickRun());
         backToEditButton.setOnAction(event -> handleBackToEdit());
         langButton.setOnAction(event -> toggleLanguage());
+        helpButton.setOnAction(event -> toggleHelp());
+        githubLink.setOnAction(event -> openUrl("https://github.com/kutkovmax/jfxtu4"));
+        inspiredLink.setOnAction(event -> openUrl("https://github.com/lxyd/jstu4"));
+    }
+
+    private void toggleHelp() {
+        isHelpVisible = !isHelpVisible;
+
+        mainContent.setVisible(!isHelpVisible);
+        mainContent.setManaged(!isHelpVisible);
+
+        helpContainer.setVisible(isHelpVisible);
+
+        helpButton.setText(isHelpVisible ? "✕" : "?");
     }
 
     private void toggleLanguage() {
@@ -67,10 +106,19 @@ public class MachineController {
         updateTexts();
     }
 
+    private void handleExecutionFinished() {
+        Tape tape = tapeView.getTape();
+        if (!tape.isHeadAfterResult()) {
+            setStatus("warning.misposition");
+        }else if (!tape.isInputPreserved()) {
+            setStatus("warning.source_altered");
+        } else {
+            setStatus("info.finished");
+        }
+    }
+
     private void updateTexts() {
         if (appTitleLabel != null) appTitleLabel.setText(bundle.getString("app.title"));
-        if (tapeLabel != null) tapeLabel.setText(bundle.getString("label.tape"));
-        if (programLabel != null) programLabel.setText(bundle.getString("label.program"));
 
         startButton.setText(bundle.getString("btn.start"));
         backToEditButton.setText(bundle.getString("btn.back"));
@@ -78,6 +126,23 @@ public class MachineController {
         stepButton.setText(bundle.getString("btn.step"));
 
         langButton.setText("ru".equals(currentLocale.getLanguage()) ? "RU" : "EN");
+
+        helpMainTitle.setText(bundle.getString("help.title"));
+        helpAboutHeader.setText(bundle.getString("help.about.title"));
+        helpAboutText.setText(bundle.getString("help.about.text"));
+        helpAuthor.setText(bundle.getString("help.author"));
+        helpSource.setText(bundle.getString("help.source"));
+        helpInspired.setText(bundle.getString("help.inspired"));
+        helpManualTitle.setText(bundle.getString("help.manual.title"));
+        helpManualFormat.setText(bundle.getString("help.manual.format"));
+        helpManualQ.setText(bundle.getString("help.manual.q"));
+        helpManualA.setText(bundle.getString("help.manual.a"));
+        helpManualV.setText(bundle.getString("help.manual.v"));
+        helpManualQP.setText(bundle.getString("help.manual.qp"));
+        helpManualCmdRight.setText(bundle.getString("help.manual.cmd.right"));
+        helpManualCmdLeft.setText(bundle.getString("help.manual.cmd.left"));
+        helpManualCmdStay.setText(bundle.getString("help.manual.cmd.stay"));
+        helpManualCmdHalt.setText(bundle.getString("help.manual.cmd.halt"));
 
         if (langButton.getScene() != null && langButton.getScene().getWindow() != null) {
             Stage stage = (Stage) langButton.getScene().getWindow();
@@ -113,12 +178,10 @@ public class MachineController {
             machine.step();
             tapeView.renderTape();
             if (machine.isStalled()) {
-                setStatus("info.finished");
-                handleBackToEdit();
+                handleExecutionFinished();
             }
         } catch (MachineException e) {
             setStatus(e.getType().getKey(), e.getArgs());
-            handleBackToEdit();
         }
     }
 
@@ -128,11 +191,9 @@ public class MachineController {
                 machine.step();
                 tapeView.renderTape();
             }
-            setStatus("info.finished");
-            handleBackToEdit();
+            handleExecutionFinished();
         } catch (MachineException e) {
             setStatus(e.getType().getKey(), e.getArgs());
-            handleBackToEdit();
         }
     }
 
@@ -141,6 +202,9 @@ public class MachineController {
         stepButton.setVisible(false);
         quickButton.setVisible(false);
         backToEditButton.setVisible(false);
+
+        tapeView.getTape().restoreInput();
+        tapeView.renderTape();
 
         tapeView.setEditable(true);
     }
@@ -172,5 +236,11 @@ public class MachineController {
         this.currentStatusArgs = null;
         statusLabel.setText("");
         statusLabel.getStyleClass().removeAll("status-error", "status-warning", "status-info");
+    }
+
+    private void openUrl(String url) {
+        if (ru.kutkovmax.jfxtu4.Main.hostServices != null) {
+            ru.kutkovmax.jfxtu4.Main.hostServices.showDocument(url);
+        }
     }
 }

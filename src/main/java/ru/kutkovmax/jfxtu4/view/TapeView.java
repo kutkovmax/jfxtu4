@@ -59,6 +59,10 @@ public class TapeView extends HBox {
                     tape.writeAt(absoluteIndex, ' ');
                     cell.setText(" ");
                     handleMoveLeft(visualIndex);
+                } else if (event.getCode() == KeyCode.DELETE) {
+                    tape.writeAt(absoluteIndex, ' ');
+                    cell.setText(" ");
+                    handleMoveRight(visualIndex);
                 }
             });
 

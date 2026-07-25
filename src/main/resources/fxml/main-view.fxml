@@ -9,6 +9,8 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
+<?import javafx.scene.control.Hyperlink?>
+<?import javafx.scene.control.ScrollPane?>
 <VBox styleClass="main-container" spacing="12" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ru.kutkovmax.jfxtu4.controller.MachineController">
     <padding>
         <Insets top="12" right="12" bottom="12" left="12"/>
@@ -21,16 +23,61 @@
         <Button fx:id="helpButton" styleClass="tool-button" text="?" />
     </HBox>
 
-    <StackPane fx:id="tapeContainer" styleClass="tape-container" />
+    <VBox fx:id="mainContent" spacing="12" VBox.vgrow="ALWAYS">
+        <StackPane fx:id="tapeContainer" styleClass="tape-container" />
 
-    <HBox alignment="CENTER_RIGHT" spacing="8">
-        <Label fx:id="statusLabel" styleClass="status-label" />
-        <Region HBox.hgrow="ALWAYS" />
-        <Button fx:id="backToEditButton" styleClass="action-button" text="%btn.back" visible="false" managed="${backToEditButton.visible}" />
-        <Button fx:id="quickButton" styleClass="action-button" text="%btn.quick" visible="false" managed="${quickButton.visible}" />
-        <Button fx:id="stepButton" styleClass="action-button" text="%btn.step" visible="false" managed="${stepButton.visible}" />
-        <Button fx:id="startButton" styleClass="action-button, start-button" text="%btn.start" managed="${startButton.visible}" />
-    </HBox>
+        <HBox alignment="CENTER_RIGHT" spacing="8">
+            <Label fx:id="statusLabel" styleClass="status-label" />
+            <Region HBox.hgrow="ALWAYS" />
+            <Button fx:id="backToEditButton" styleClass="action-button" text="%btn.back" visible="false" managed="${backToEditButton.visible}" />
+            <Button fx:id="quickButton" styleClass="action-button" text="%btn.quick" visible="false" managed="${quickButton.visible}" />
+            <Button fx:id="stepButton" styleClass="action-button" text="%btn.step" visible="false" managed="${stepButton.visible}" />
+            <Button fx:id="startButton" styleClass="action-button, start-button" text="%btn.start" managed="${startButton.visible}" />
+        </HBox>
 
-    <TextArea fx:id="programInput" styleClass="code-editor" VBox.vgrow="ALWAYS" />
+        <TextArea fx:id="programInput" styleClass="code-editor" VBox.vgrow="ALWAYS" />
+    </VBox>
+
+    <ScrollPane fx:id="helpContainer" fitToWidth="true" visible="false" managed="${helpContainer.visible}" VBox.vgrow="ALWAYS" styleClass="help-scroll">
+        <VBox spacing="10">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+
+
+            <Label fx:id="helpMainTitle" text="%help.title" styleClass="help-title" />
+
+            <Label fx:id="helpAboutHeader" text="%help.about.title" styleClass="help-header" />
+            <Label fx:id="helpAboutText" text="%help.about.text" wrapText="true" />
+            <Label fx:id="helpAuthor" text="%help.author" />
+
+            <HBox spacing="6" alignment="CENTER_LEFT">
+                <Label fx:id="helpSource" text="%help.source" />
+                <Hyperlink fx:id="githubLink" text="github.com/kutkovmax/jfxtu4" styleClass="help-back-link" />
+            </HBox>
+
+            <HBox spacing="6" alignment="CENTER_LEFT">
+                <Label fx:id="helpInspired" text="%help.inspired" />
+                <Hyperlink fx:id="inspiredLink" text="github.com/lxyd/jstu4" styleClass="help-back-link" />
+            </HBox>
+
+            <Label fx:id="helpManualTitle" text="%help.manual.title" styleClass="help-header" />
+            <Label fx:id="helpManualFormat" text="%help.manual.format" styleClass="help-subheader" />
+
+            <VBox spacing="2">
+                <Label fx:id="helpManualQ" text="%help.manual.q" />
+                <Label fx:id="helpManualA" text="%help.manual.a" />
+                <Label fx:id="helpManualV" text="%help.manual.v" />
+                <Label fx:id="helpManualQP" text="%help.manual.qp" />
+            </VBox>
+
+            <VBox spacing="2">
+                <Label fx:id="helpManualCmdRight" text="%help.manual.cmd.right" />
+                <Label fx:id="helpManualCmdLeft" text="%help.manual.cmd.left" />
+                <Label fx:id="helpManualCmdStay" text="%help.manual.cmd.stay" />
+                <Label fx:id="helpManualCmdHalt" text="%help.manual.cmd.halt" />
+            </VBox>
+
+        </VBox>
+    </ScrollPane>
 </VBox>

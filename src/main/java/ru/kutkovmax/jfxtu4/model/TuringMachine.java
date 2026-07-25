@@ -35,6 +35,8 @@ public class TuringMachine {
             tape.moveLeft();
         } else if (action == '#') {
             stalled = true;
+        } else if (action == '='){
+
         } else {
             tape.write(action);
         }

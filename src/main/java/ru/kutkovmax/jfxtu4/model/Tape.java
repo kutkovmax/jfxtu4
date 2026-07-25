@@ -6,10 +6,14 @@ import java.util.List;
 public class Tape {
     private int head;
     private final List<Character> cells;
+    private String inputString;
+
     private static final char BLANK_CHAR = ' ';
 
     public Tape(String initialInput) {
         this.cells = new ArrayList<>();
+
+        this.inputString = (initialInput == null) ? "" : initialInput;
 
         if (initialInput == null || initialInput.isEmpty()) {
             this.cells.add(BLANK_CHAR);
@@ -58,8 +62,56 @@ public class Tape {
             }
         }
 
+        if (lastNonBlank == -1) {
+            inputString = "";
+        } else {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i <= lastNonBlank; i++) {
+                sb.append(cells.get(i));
+            }
+            inputString = sb.toString();
+        }
+
         head = lastNonBlank + 1;
         ensureCapacity();
+    }
+
+    public void restoreInput() {
+        cells.clear();
+        if (inputString.isEmpty()) {
+            cells.add(BLANK_CHAR);
+        } else {
+            for (char c : inputString.toCharArray()) {
+                cells.add(c);
+            }
+        }
+    }
+
+    public boolean isInputPreserved() {
+        if (inputString == null) {
+            return true;
+        }
+
+        for (int i = 0; i < inputString.length(); i++) {
+            if (cells.get(i) != inputString.charAt(i)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public boolean isHeadAfterResult() {
+        int lastNonBlank = -1;
+
+        for (int i = cells.size() - 1; i >= 0; i--) {
+            if (cells.get(i) != BLANK_CHAR) {
+                lastNonBlank = i;
+                break;
+            }
+        }
+
+        return head == lastNonBlank + 1;
     }
 
     // -- ui accessors --

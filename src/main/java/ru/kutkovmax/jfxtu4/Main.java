@@ -1,6 +1,7 @@
 package ru.kutkovmax.jfxtu4;
 
 import javafx.application.Application;
+import javafx.application.HostServices;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -15,6 +16,7 @@ import java.util.ResourceBundle;
 public class Main extends Application {
 
     private static final String VERSION = "0.1.0";
+    public static HostServices hostServices;
 
     public static void main(String[] args) {
         launch();
@@ -26,6 +28,7 @@ public class Main extends Application {
 
         ResourceBundle bundle = ResourceBundle.getBundle("messages");
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/main-view.fxml"), bundle);
+        hostServices = getHostServices();
         Parent root = loader.load();
 
         Scene scene = new Scene(root);
