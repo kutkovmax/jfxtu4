@@ -47,4 +47,14 @@ public class TuringMachine {
     public boolean isStalled() {
         return stalled;
     }
+
+    public int getNextLineIndex() {
+        if (stalled) return -1;
+
+        char currentSymbol = tape.read();
+        TransitionKey key = new TransitionKey(currentStateId, currentSymbol);
+        TransitionResult instruction = program.transitionTable().get(key);
+
+        return instruction != null ? instruction.lineIndex() : -1;
+    }
 }

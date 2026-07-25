@@ -168,6 +168,7 @@ public class MachineController {
             stepButton.setVisible(true);
             quickButton.setVisible(true);
             backToEditButton.setVisible(true);
+            highlightLine(machine.getNextLineIndex());
         } catch (ParsingException e) {
             setStatus(e);
         }
@@ -178,7 +179,10 @@ public class MachineController {
             machine.step();
             tapeView.renderTape();
             if (machine.isStalled()) {
+                programInput.deselect();
                 handleExecutionFinished();
+            }else {
+                highlightLine(machine.getNextLineIndex());
             }
         } catch (MachineException e) {
             setStatus(e.getType().getKey(), e.getArgs());
@@ -191,6 +195,7 @@ public class MachineController {
                 machine.step();
                 tapeView.renderTape();
             }
+            programInput.deselect();
             handleExecutionFinished();
         } catch (MachineException e) {
             setStatus(e.getType().getKey(), e.getArgs());
@@ -205,7 +210,8 @@ public class MachineController {
 
         tapeView.getTape().restoreInput();
         tapeView.renderTape();
-
+        programInput.deselect();
+        programInput.setEditable(true);
         tapeView.setEditable(true);
     }
 
@@ -236,6 +242,26 @@ public class MachineController {
         this.currentStatusArgs = null;
         statusLabel.setText("");
         statusLabel.getStyleClass().removeAll("status-error", "status-warning", "status-info");
+    }
+
+    private void highlightLine(int lineIndex) {
+        if (lineIndex < 0) {
+            programInput.deselect();
+            return;
+        }
+
+        String text = programInput.getText();
+        String[] lines = text.split("\n", -1);
+        if (lineIndex >= lines.length) return;
+
+        int start = 0;
+        for (int i = 0; i < lineIndex; i++) {
+            start += lines[i].length() + 1;
+        }
+        int end = start + lines[lineIndex].length();
+
+        programInput.setEditable(false);
+        programInput.selectRange(start, end);
     }
 
     private void openUrl(String url) {

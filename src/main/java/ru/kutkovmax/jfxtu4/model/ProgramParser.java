@@ -87,7 +87,7 @@ public class ProgramParser {
                     throw new ParsingException(ParsingException.ErrorType.DUPLICATE_TRANSITION, lineNumber, qStr, symbol);
                 }
 
-                transitionTable.put(key, new TransitionResult(qNextId, action));
+                transitionTable.put(key, new TransitionResult(qNextId, action, lineIdx));
             }
         }
 

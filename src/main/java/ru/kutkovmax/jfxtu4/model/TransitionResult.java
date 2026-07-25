@@ -1,3 +1,3 @@
 package ru.kutkovmax.jfxtu4.model;
 
-public record TransitionResult(int nextState, char symbolToWrite) {}
+public record TransitionResult(int nextState, char symbolToWrite, int lineIndex) {}
