@@ -1,10 +1,14 @@
 package ru.kutkovmax.jfxtu4.controller;
 
+import javafx.animation.Animation;
+import javafx.animation.Timeline;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.animation.KeyFrame;
+import javafx.util.Duration;
 import ru.kutkovmax.jfxtu4.model.*;
 import ru.kutkovmax.jfxtu4.view.TapeView;
 
@@ -17,8 +21,6 @@ public class MachineController {
     private static final String VERSION = "0.1.0";
 
     @FXML private Label appTitleLabel;
-    @FXML private Label tapeLabel;
-    @FXML private Label programLabel;
 
     @FXML private Button langButton;
     @FXML private Button helpButton;
@@ -52,6 +54,7 @@ public class MachineController {
     @FXML private Button startButton;
     @FXML private Button backToEditButton;
     @FXML private Button quickButton;
+    @FXML private Button instantButton;
     @FXML private Button stepButton;
     @FXML private Label statusLabel;
 
@@ -65,6 +68,8 @@ public class MachineController {
     private Object[] currentStatusArgs;
 
     private boolean isHelpVisible = false;
+
+    private Timeline quickTimeline;
 
     @FXML
     public void initialize() {
@@ -81,6 +86,7 @@ public class MachineController {
         startButton.setOnAction(event -> handleStart());
         stepButton.setOnAction(event -> handleStep());
         quickButton.setOnAction(event -> handleQuickRun());
+        instantButton.setOnAction(event -> handleInstantRun());
         backToEditButton.setOnAction(event -> handleBackToEdit());
         langButton.setOnAction(event -> toggleLanguage());
         helpButton.setOnAction(event -> toggleHelp());
@@ -123,6 +129,7 @@ public class MachineController {
         startButton.setText(bundle.getString("btn.start"));
         backToEditButton.setText(bundle.getString("btn.back"));
         quickButton.setText(bundle.getString("btn.quick"));
+        instantButton.setText(bundle.getString("btn.instant"));
         stepButton.setText(bundle.getString("btn.step"));
 
         langButton.setText("ru".equals(currentLocale.getLanguage()) ? "RU" : "EN");
@@ -167,6 +174,7 @@ public class MachineController {
             startButton.setVisible(false);
             stepButton.setVisible(true);
             quickButton.setVisible(true);
+            instantButton.setVisible(true);
             backToEditButton.setVisible(true);
             highlightLine(machine.getNextLineIndex());
         } catch (ParsingException e) {
@@ -190,6 +198,42 @@ public class MachineController {
     }
 
     private void handleQuickRun() {
+        if (quickTimeline != null && quickTimeline.getStatus() == Animation.Status.RUNNING) {
+            stopQuickTimer();
+            return;
+        }
+
+        quickTimeline = new Timeline(new KeyFrame(Duration.millis(80), event -> {
+            try {
+                machine.step();
+                tapeView.renderTape();
+
+                if (machine.isStalled()) {
+                    stopQuickTimer();
+                    programInput.deselect();
+                    handleExecutionFinished();
+                } else {
+                    highlightLine(machine.getNextLineIndex());
+                }
+            } catch (MachineException e) {
+                stopQuickTimer();
+                setStatus(e.getType().getKey(), e.getArgs());
+            }
+        }));
+
+        quickTimeline.setCycleCount(Animation.INDEFINITE);
+        quickTimeline.play();
+    }
+
+
+    private void stopQuickTimer() {
+        if (quickTimeline != null) {
+            quickTimeline.stop();
+            quickTimeline = null;
+        }
+    }
+
+    private void handleInstantRun() {
         try {
             while (!machine.isStalled()) {
                 machine.step();
@@ -206,6 +250,7 @@ public class MachineController {
         startButton.setVisible(true);
         stepButton.setVisible(false);
         quickButton.setVisible(false);
+        instantButton.setVisible(false);
         backToEditButton.setVisible(false);
 
         tapeView.getTape().restoreInput();
