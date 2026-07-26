@@ -37,8 +37,8 @@ public class Main extends Application {
         stage.getIcons().add(new Image(Objects.requireNonNull(getClass().getResourceAsStream("/images/app-icon.png"))));
         stage.setTitle(bundle.getString("app.title") + " v" + VERSION);
         stage.setScene(scene);
-        stage.setMinWidth(500);
-        stage.setMinHeight(400);
+        stage.setMinWidth(700);
+        stage.setMinHeight(500);
         stage.show();
     }
 

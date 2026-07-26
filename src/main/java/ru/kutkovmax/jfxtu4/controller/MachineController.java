@@ -6,12 +6,14 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.animation.KeyFrame;
 import javafx.util.Duration;
 import ru.kutkovmax.jfxtu4.model.*;
 import ru.kutkovmax.jfxtu4.view.TapeView;
 
+import java.io.File;
 import java.text.MessageFormat;
 import java.util.Locale;
 import java.util.ResourceBundle;
@@ -24,6 +26,8 @@ public class MachineController {
 
     @FXML private Button langButton;
     @FXML private Button helpButton;
+    @FXML private Button openButton;
+    @FXML private Button saveButton;
 
     @FXML private VBox mainContent;
     @FXML private ScrollPane helpContainer;
@@ -83,6 +87,8 @@ public class MachineController {
     }
 
     private void initHandlers() {
+        openButton.setOnAction(event -> handleOpen());
+        saveButton.setOnAction(event -> handleSave());
         startButton.setOnAction(event -> handleStart());
         stepButton.setOnAction(event -> handleStep());
         quickButton.setOnAction(event -> handleQuickRun());
@@ -125,6 +131,9 @@ public class MachineController {
 
     private void updateTexts() {
         if (appTitleLabel != null) appTitleLabel.setText(bundle.getString("app.title"));
+
+        openButton.setText(bundle.getString("btn.open"));
+        saveButton.setText(bundle.getString("btn.save"));
 
         startButton.setText(bundle.getString("btn.start"));
         backToEditButton.setText(bundle.getString("btn.back"));
@@ -243,6 +252,52 @@ public class MachineController {
             handleExecutionFinished();
         } catch (MachineException e) {
             setStatus(e.getType().getKey(), e.getArgs());
+        }
+    }
+    private void handleSave() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle(bundle.getString("dialog.save.title"));
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter(bundle.getString("dialog.file.filter") + " (*.tu4)", "*.tu4"),
+                new FileChooser.ExtensionFilter(bundle.getString("dialog.all.files"), "*.*")
+        );
+        fileChooser.setInitialFileName("program.tu4");
+
+        Stage stage = (Stage) programInput.getScene().getWindow();
+        File file = fileChooser.showSaveDialog(stage);
+
+        if (file != null) {
+            if (!file.getName().toLowerCase().endsWith(".tu4")) {
+                file = new File(file.getAbsolutePath() + ".tu4");
+            }
+            try {
+                java.nio.file.Files.writeString(file.toPath(), programInput.getText());
+                setStatus("info.saved");
+            } catch (Exception e) {
+                setStatus("error.file_save");
+            }
+        }
+    }
+
+    private void handleOpen() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle(bundle.getString("dialog.open.title"));
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter(bundle.getString("dialog.file.filter") + " (*.tu4)", "*.tu4"),
+                new FileChooser.ExtensionFilter(bundle.getString("dialog.all.files"), "*.*")
+        );
+
+        Stage stage = (Stage) programInput.getScene().getWindow();
+        File file = fileChooser.showOpenDialog(stage);
+
+        if (file != null) {
+            try {
+                String content = java.nio.file.Files.readString(file.toPath());
+                programInput.setText(content);
+                setStatus("info.loaded");
+            } catch (Exception e) {
+                setStatus("error.file_open");
+            }
         }
     }
 
