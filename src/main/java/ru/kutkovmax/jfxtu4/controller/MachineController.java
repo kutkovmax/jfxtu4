@@ -4,6 +4,8 @@ import javafx.animation.Animation;
 import javafx.animation.Timeline;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
@@ -22,6 +24,7 @@ public class MachineController {
 
     private static final String VERSION = "0.1.0";
 
+    @FXML private VBox rootBox;
     @FXML private Label appTitleLabel;
 
     @FXML private Button langButton;
@@ -80,13 +83,20 @@ public class MachineController {
         bundle = ResourceBundle.getBundle("messages", currentLocale);
 
         Tape tape = new Tape("");
+
         this.tapeView = new TapeView(tape);
+        this.tapeView.widthProperty().bind(tapeContainer.widthProperty());
+        this.tapeView.heightProperty().bind(tapeContainer.heightProperty());
         this.tapeContainer.getChildren().add(tapeView);
         updateTexts();
         initHandlers();
     }
 
     private void initHandlers() {
+        rootBox.setFocusTraversable(true);
+        rootBox.setOnMousePressed(event -> {
+            rootBox.requestFocus();
+        });
         openButton.setOnAction(event -> handleOpen());
         saveButton.setOnAction(event -> handleSave());
         startButton.setOnAction(event -> handleStart());
@@ -98,6 +108,20 @@ public class MachineController {
         helpButton.setOnAction(event -> toggleHelp());
         githubLink.setOnAction(event -> openUrl("https://github.com/kutkovmax/jfxtu4"));
         inspiredLink.setOnAction(event -> openUrl("https://github.com/lxyd/jstu4"));
+
+        tapeView.setOnRunAction(this::handleStart);
+        tapeView.setOnToggleFastModeAction(this::handleQuickRun);
+        tapeView.setOnStepAction(this::handleStep);
+        tapeView.setOnStopAction(this::handleBackToEdit);
+
+        programInput.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.isControlDown() && event.getCode() == KeyCode.ENTER) {
+                if (startButton.isVisible()) {
+                    handleStart();
+                    event.consume();
+                }
+            }
+        });
     }
 
     private void toggleHelp() {
@@ -171,6 +195,7 @@ public class MachineController {
     }
 
     private void handleStart() {
+        stopQuickTimer();
         clearStatus();
         String programText = programInput.getText();
         try {
@@ -243,6 +268,7 @@ public class MachineController {
     }
 
     private void handleInstantRun() {
+        stopQuickTimer();
         try {
             while (!machine.isStalled()) {
                 machine.step();
@@ -280,6 +306,7 @@ public class MachineController {
     }
 
     private void handleOpen() {
+        stopQuickTimer();
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(bundle.getString("dialog.open.title"));
         fileChooser.getExtensionFilters().addAll(
@@ -302,6 +329,9 @@ public class MachineController {
     }
 
     private void handleBackToEdit() {
+        stopQuickTimer();
+        clearStatus();
+
         startButton.setVisible(true);
         stepButton.setVisible(false);
         quickButton.setVisible(false);

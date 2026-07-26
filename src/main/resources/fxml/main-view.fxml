@@ -11,7 +11,7 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox styleClass="main-container" spacing="12" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ru.kutkovmax.jfxtu4.controller.MachineController">
+<VBox fx:id="rootBox"   styleClass="main-container" spacing="12" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ru.kutkovmax.jfxtu4.controller.MachineController">
     <padding>
         <Insets top="12" right="12" bottom="12" left="12"/>
     </padding>
