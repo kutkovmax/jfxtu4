@@ -1,0 +1,15 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=JFXtu4
+GenericName=Turing Machine Emulator
+GenericName[ru]=Эмулятор машины Тьюринга
+Comment=Educational Turing machine 4-tuple emulator
+Comment[ru]=Учебный эмулятор машины Тьюринга в четвёрках
+Exec=JFXtu4
+Icon=jfxtu4
+Terminal=false
+Categories=Education;Science;Development;
+Keywords=turing;emulator;education;
+StartupNotify=true
+StartupWMClass=JFXtu4

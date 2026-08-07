@@ -15,8 +15,13 @@ import java.util.ResourceBundle;
 
 public class Main extends Application {
 
-    private static final String VERSION = "0.1.0";
+    public static final String VERSION;
     public static HostServices hostServices;
+
+    static {
+        String v = Main.class.getPackage().getImplementationVersion();
+        VERSION = (v == null) ? "dev" : v;
+    }
 
     public static void main(String[] args) {
         launch();

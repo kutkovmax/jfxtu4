@@ -9,6 +9,7 @@ public class Tape {
     private String inputString;
 
     private static final char BLANK_CHAR = ' ';
+    private final Object lock = new Object();
 
     public Tape(String initialInput) {
         this.cells = new ArrayList<>();
@@ -23,28 +24,36 @@ public class Tape {
                 this.cells.add(c);
             }
             this.head = initialInput.length();
-            ensureCapacity(); // spawns next blank cell right of input data
+            ensureCapacity();
         }
     }
 
     public char read(){
-        return cells.get(head);
+        synchronized (lock) {
+            return cells.get(head);
+        }
     }
 
     public void write(char character){
-        cells.set(head, character);
+        synchronized (lock) {
+            cells.set(head, character);
+        }
     }
 
     public void moveLeft(){
-        if (head == 0) {
-            throw new MachineException(MachineException.Type.HEAD_OUT_OF_BOUNDS);
+        synchronized (lock) {
+            if (head == 0) {
+                throw new MachineException(MachineException.Type.HEAD_OUT_OF_BOUNDS);
+            }
+            head--;
         }
-        head--;
     }
 
     public void moveRight(){
-        head++;
-        ensureCapacity();
+        synchronized (lock) {
+            head++;
+            ensureCapacity();
+        }
     }
 
     private void ensureCapacity() {
@@ -54,95 +63,130 @@ public class Tape {
     }
 
     public void moveHeadToEndOfInput() {
-        int lastNonBlank = -1;
+        synchronized (lock) {
+            int lastNonBlank = -1;
 
-        for (int i = 0; i < cells.size(); i++) {
-            if (cells.get(i) != BLANK_CHAR) {
-                lastNonBlank = i;
+            for (int i = 0; i < cells.size(); i++) {
+                if (cells.get(i) != BLANK_CHAR) {
+                    lastNonBlank = i;
+                }
             }
-        }
 
-        if (lastNonBlank == -1) {
-            inputString = "";
-        } else {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i <= lastNonBlank; i++) {
-                sb.append(cells.get(i));
+            if (lastNonBlank == -1) {
+                inputString = "";
+            } else {
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i <= lastNonBlank; i++) {
+                    sb.append(cells.get(i));
+                }
+                inputString = sb.toString();
             }
-            inputString = sb.toString();
-        }
 
-        head = lastNonBlank + 1;
-        ensureCapacity();
+            head = lastNonBlank + 1;
+            ensureCapacity();
+        }
     }
 
     public void restoreInput() {
-        cells.clear();
-        if (inputString.isEmpty()) {
-            cells.add(BLANK_CHAR);
-        } else {
-            for (char c : inputString.toCharArray()) {
-                cells.add(c);
+        synchronized (lock) {
+            cells.clear();
+            if (inputString.isEmpty()) {
+                cells.add(BLANK_CHAR);
+                head = 0;
+            } else {
+                for (char c : inputString.toCharArray()) {
+                    cells.add(c);
+                }
+                head = inputString.length();
             }
         }
     }
 
     public boolean isInputPreserved() {
-        if (inputString == null) {
+        synchronized (lock) {
+            if (inputString == null) {
+                return true;
+            }
+
+            for (int i = 0; i < inputString.length(); i++) {
+                if (cells.get(i) != inputString.charAt(i)) {
+                    return false;
+                }
+            }
+
             return true;
         }
-
-        for (int i = 0; i < inputString.length(); i++) {
-            if (cells.get(i) != inputString.charAt(i)) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     public boolean isHeadAfterResult() {
-        int lastNonBlank = -1;
+        synchronized (lock) {
+            int lastNonBlank = -1;
 
-        for (int i = cells.size() - 1; i >= 0; i--) {
-            if (cells.get(i) != BLANK_CHAR) {
-                lastNonBlank = i;
-                break;
+            for (int i = cells.size() - 1; i >= 0; i--) {
+                if (cells.get(i) != BLANK_CHAR) {
+                    lastNonBlank = i;
+                    break;
+                }
             }
-        }
 
-        return head == lastNonBlank + 1;
+            return head == lastNonBlank + 1;
+        }
     }
 
     // -- ui accessors --
 
     public int getHeadPosition() {
-        return head;
+        synchronized (lock) {
+            return head;
+        }
     }
 
     public void setHeadPosition(int position) {
-        if (position < 0) return;
-        this.head = position;
-        ensureCapacity();
+        synchronized (lock) {
+            if (position < 0) return;
+            this.head = position;
+            ensureCapacity();
+        }
     }
 
     public int getCellsSize() {
-        return cells.size();
+        synchronized (lock) {
+            return cells.size();
+        }
     }
 
     public char readAt(int index) {
-        if (index < 0 || index >= cells.size()) {
-            return BLANK_CHAR;
+        synchronized (lock) {
+            if (index < 0 || index >= cells.size()) {
+                return BLANK_CHAR;
+            }
+            Character c = cells.get(index);
+            return c == null ? BLANK_CHAR : c;
         }
-        return cells.get(index);
     }
 
     public void writeAt(int index, char character) {
-        if (index < 0) return;
-        while (index >= cells.size()) {
-            cells.add(BLANK_CHAR);
+        synchronized (lock) {
+            if (index < 0) return;
+            while (index >= cells.size()) {
+                cells.add(BLANK_CHAR);
+            }
+            cells.set(index, character);
         }
-        cells.set(index, character);
     }
 
+    // -- snapshot for UI rendering --
+
+    public TapeSnapshotForRender snapshotForRender() {
+        synchronized (lock) {
+            char[] copy = new char[cells.size()];
+            for (int i = 0; i < cells.size(); i++) {
+                Character c = cells.get(i);
+                copy[i] = (c == null) ? BLANK_CHAR : c;
+            }
+            return new TapeSnapshotForRender(copy, head);
+        }
+    }
+
+    public record TapeSnapshotForRender(char[] cellsCopy, int headPosition) {}
 }

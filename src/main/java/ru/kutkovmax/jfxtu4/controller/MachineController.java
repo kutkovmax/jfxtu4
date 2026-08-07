@@ -2,6 +2,7 @@ package ru.kutkovmax.jfxtu4.controller;
 
 import javafx.animation.Animation;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
@@ -12,6 +13,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.animation.KeyFrame;
 import javafx.util.Duration;
+import ru.kutkovmax.jfxtu4.Main;
 import ru.kutkovmax.jfxtu4.model.*;
 import ru.kutkovmax.jfxtu4.view.TapeView;
 
@@ -21,8 +23,6 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 
 public class MachineController {
-
-    private static final String VERSION = "0.1.0";
 
     @FXML private VBox rootBox;
     @FXML private Label appTitleLabel;
@@ -77,6 +77,8 @@ public class MachineController {
     private boolean isHelpVisible = false;
 
     private Timeline quickTimeline;
+    private Thread instantRunThread;
+    private volatile boolean instantRunCancelled;
 
     @FXML
     public void initialize() {
@@ -186,7 +188,7 @@ public class MachineController {
 
         if (langButton.getScene() != null && langButton.getScene().getWindow() != null) {
             Stage stage = (Stage) langButton.getScene().getWindow();
-            stage.setTitle(bundle.getString("app.title") + " v" + VERSION);
+            stage.setTitle(bundle.getString("app.title") + " v" + Main.VERSION);
         }
 
         if (currentStatusKey != null) {
@@ -195,7 +197,7 @@ public class MachineController {
     }
 
     private void handleStart() {
-        stopQuickTimer();
+        stopExecution();
         clearStatus();
         String programText = programInput.getText();
         try {
@@ -233,9 +235,10 @@ public class MachineController {
 
     private void handleQuickRun() {
         if (quickTimeline != null && quickTimeline.getStatus() == Animation.Status.RUNNING) {
-            stopQuickTimer();
+            stopExecution();
             return;
         }
+        stopInstantRun();
 
         quickTimeline = new Timeline(new KeyFrame(Duration.millis(80), event -> {
             try {
@@ -267,19 +270,67 @@ public class MachineController {
         }
     }
 
-    private void handleInstantRun() {
-        stopQuickTimer();
-        try {
-            while (!machine.isStalled()) {
-                machine.step();
-                tapeView.renderTape();
-            }
-            programInput.deselect();
-            handleExecutionFinished();
-        } catch (MachineException e) {
-            setStatus(e.getType().getKey(), e.getArgs());
+    private void stopInstantRun() {
+        instantRunCancelled = true;
+        if (instantRunThread != null) {
+            instantRunThread.interrupt();
+            instantRunThread = null;
         }
     }
+
+    private void stopExecution() {
+        stopQuickTimer();
+        stopInstantRun();
+    }
+
+    private void handleInstantRun() {
+        stopExecution();
+
+        instantRunCancelled = false;
+        instantRunThread = new Thread(() -> {
+            try {
+                final long RENDER_INTERVAL_MS = 40L;
+                long nextRenderAt = System.currentTimeMillis() + RENDER_INTERVAL_MS;
+                boolean[] renderPending = {false};
+
+                while (!machine.isStalled() && !instantRunCancelled) {
+                    machine.step();
+
+                    long now = System.currentTimeMillis();
+                    if (now >= nextRenderAt && !renderPending[0]) {
+                        nextRenderAt = now + RENDER_INTERVAL_MS;
+                        final int lineIdx = machine.isStalled() ? -1 : machine.getNextLineIndex();
+                        renderPending[0] = true;
+                        Platform.runLater(() -> {
+                            try {
+                                if (!instantRunCancelled) {
+                                    tapeView.renderTape();
+                                    if (lineIdx >= 0) highlightLine(lineIdx);
+                                }
+                            } finally {
+                                renderPending[0] = false;
+                            }
+                        });
+                    }
+                }
+                if (!instantRunCancelled) {
+                    Platform.runLater(() -> {
+                        tapeView.renderTape();
+                        programInput.deselect();
+                        handleExecutionFinished();
+                    });
+                }
+            } catch (MachineException e) {
+                Platform.runLater(() -> {
+                    tapeView.renderTape();
+                    setStatus(e.getType().getKey(), e.getArgs());
+                });
+            }
+        }, "Instant-Run-Thread");
+        instantRunThread.setDaemon(true);
+        instantRunThread.start();
+    }
+
     private void handleSave() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(bundle.getString("dialog.save.title"));
@@ -306,7 +357,7 @@ public class MachineController {
     }
 
     private void handleOpen() {
-        stopQuickTimer();
+        stopExecution();
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(bundle.getString("dialog.open.title"));
         fileChooser.getExtensionFilters().addAll(
@@ -329,7 +380,7 @@ public class MachineController {
     }
 
     private void handleBackToEdit() {
-        stopQuickTimer();
+        stopExecution();
         clearStatus();
 
         startButton.setVisible(true);
@@ -395,8 +446,8 @@ public class MachineController {
     }
 
     private void openUrl(String url) {
-        if (ru.kutkovmax.jfxtu4.Main.hostServices != null) {
-            ru.kutkovmax.jfxtu4.Main.hostServices.showDocument(url);
+        if (Main.hostServices != null) {
+            Main.hostServices.showDocument(url);
         }
     }
 }

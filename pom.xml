@@ -4,9 +4,9 @@
     <groupId>ru.kutkovmax</groupId>
     <artifactId>jfxtu4</artifactId>
     <packaging>jar</packaging>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <name>jfxtu4</name>
-    <url>http://maven.apache.org</url>
+    <url>https://github.com/kutkovmax/jfxtu4</url>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
@@ -14,6 +14,36 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <javafx.version>21.0.11</javafx.version>
         <javafx.maven.plugin.version>0.0.8</javafx.maven.plugin.version>
+        <exec.maven.plugin.version>3.5.0</exec.maven.plugin.version>
+        <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
+        <maven.surefire.version>3.5.2</maven.surefire.version>
+        <maven.jar.plugin.version>3.4.2</maven.jar.plugin.version>
+
+        <app.name>JFXtu4</app.name>
+        <app.vendor>Maxim Kutkov</app.vendor>
+        <app.description>Turing Machine 4-tuple Emulator — an educational tool for studying Turing machines in 4-tuples.</app.description>
+        <main.class>ru.kutkovmax.jfxtu4.Main</main.class>
+        <module.name>ru.kutkovmax.jfxtu4</module.name>
+
+        <project.jlink.image.name>${app.name}-runtime</project.jlink.image.name>
+        <project.jlink.launcher.name>${app.name}</project.jlink.launcher.name>
+
+        <!-- jpackage type: app-image | exe | msi | deb | rpm | dmg | pkg -->
+        <pkg.type>app-image</pkg.type>
+        <skip.jpackage>true</skip.jpackage>
+
+        <!-- Linux pkg defaults -->
+        <linux.pkg.category>Education</linux.pkg.category>
+        <linux.pkg.maintainer>Maxim Kutkov</linux.pkg.maintainer>
+        <linux.pkg.license>MIT</linux.pkg.license>
+        <linux.pkg.name>jfxtu4</linux.pkg.name>
+        <linux.pkg.release>1</linux.pkg.release>
+        <linux.pkg.deps.deb>libc6, libgtk-3-0, libglib2.0-0, libpango-1.0-0, libfreetype6, libpng16-16, libx11-6, libasound2t64 | libasound2, libxtst6, libxss1, libgl1</linux.pkg.deps.deb>
+        <linux.pkg.deps.rpm>glibc, gtk3, glib2, pango, freetype, libpng, libX11, alsa-lib, libXtst, libXScrnSaver, mesa-libGL</linux.pkg.deps.rpm>
+
+        <!-- jpackage sources (overridden per OS profile) -->
+        <jpackage.icon></jpackage.icon>
+        <jpackage.license.file>${project.basedir}/LICENSE</jpackage.license.file>
     </properties>
 
     <dependencies>
@@ -23,35 +53,455 @@
             <version>${javafx.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>5.12.2</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>5.12.2</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-fxml</artifactId>
-            <version>21</version>
+            <version>${javafx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.12.2</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven.compiler.plugin.version}</version>
+                <configuration>
+                    <release>21</release>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven.surefire.version}</version>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>${maven.jar.plugin.version}</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>${main.class}</mainClass>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+                        </manifest>
+                        <manifestEntries>
+                            <Implementation-Title>${app.name}</Implementation-Title>
+                            <Implementation-Version>${project.version}</Implementation-Version>
+                            <Implementation-Vendor>${app.vendor}</Implementation-Vendor>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>${javafx.maven.plugin.version}</version>
                 <configuration>
-                    <mainClass>ru.kutkovmax.jfxtu4.Main</mainClass>
+                    <mainClass>${module.name}/${main.class}</mainClass>
+                    <compress>2</compress>
+                    <noHeaderFiles>true</noHeaderFiles>
+                    <noManPages>true</noManPages>
+                    <stripDebug>true</stripDebug>
+                    <stripNativeCommands>true</stripNativeCommands>
+                    <launcher>${project.jlink.launcher.name}</launcher>
+                    <jlinkImageName>${project.jlink.image.name}</jlinkImageName>
+                    <jlinkZipName>${project.jlink.image.name}</jlinkZipName>
+                    <includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
                 </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>${exec.maven.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>jpackage</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>jpackage</executable>
+                            <skip>${skip.jpackage}</skip>
+                            <arguments>
+                                <argument>--type</argument>
+                                <argument>${pkg.type}</argument>
+                                <argument>--name</argument>
+                                <argument>${app.name}</argument>
+                                <argument>--app-version</argument>
+                                <argument>${project.version}</argument>
+                                <argument>--vendor</argument>
+                                <argument>${app.vendor}</argument>
+                                <argument>--description</argument>
+                                <argument>${app.description}</argument>
+                                <argument>--copyright</argument>
+                                <argument>© ${app.vendor}</argument>
+                                <argument>--runtime-image</argument>
+                                <argument>${project.build.directory}/${project.jlink.image.name}</argument>
+                                <argument>--module</argument>
+                                <argument>${module.name}/${main.class}</argument>
+                                <argument>--dest</argument>
+                                <argument>${project.build.directory}/dist</argument>
+                                <argument>--java-options</argument>
+                                <argument>-Dfile.encoding=UTF-8</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
 
+    <profiles>
+        <profile>
+            <id>package-linux-appimage</id>
+            <properties>
+                <skip.jpackage>false</skip.jpackage>
+                <jpackage.icon>${project.basedir}/deploy/app-icon.png</jpackage.icon>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>${exec.maven.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>jpackage</id>
+                                <configuration combine.self="override">
+                                    <executable>jpackage</executable>
+                                    <skip>${skip.jpackage}</skip>
+                                    <arguments>
+                                        <argument>--type</argument>
+                                        <argument>app-image</argument>
+                                        <argument>--name</argument>
+                                        <argument>${app.name}</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${project.version}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>${app.vendor}</argument>
+                                        <argument>--description</argument>
+                                        <argument>${app.description}</argument>
+                                        <argument>--copyright</argument>
+                                        <argument>© ${app.vendor}</argument>
+                                        <argument>--runtime-image</argument>
+                                        <argument>${project.build.directory}/${project.jlink.image.name}</argument>
+                                        <argument>--module</argument>
+                                        <argument>${module.name}/${main.class}</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${project.build.directory}/dist</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>-Dfile.encoding=UTF-8</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${jpackage.icon}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>package-linux-deb</id>
+            <properties>
+                <skip.jpackage>false</skip.jpackage>
+                <jpackage.icon>${project.basedir}/deploy/app-icon.png</jpackage.icon>
+                <jpackage.license.file>${project.basedir}/LICENSE</jpackage.license.file>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>${exec.maven.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>jpackage</id>
+                                <configuration combine.self="override">
+                                    <executable>jpackage</executable>
+                                    <skip>${skip.jpackage}</skip>
+                                    <arguments>
+                                        <argument>--type</argument>
+                                        <argument>deb</argument>
+                                        <argument>--name</argument>
+                                        <argument>${app.name}</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${project.version}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>${app.vendor}</argument>
+                                        <argument>--description</argument>
+                                        <argument>${app.description}</argument>
+                                        <argument>--copyright</argument>
+                                        <argument>© ${app.vendor}</argument>
+                                        <argument>--runtime-image</argument>
+                                        <argument>${project.build.directory}/${project.jlink.image.name}</argument>
+                                        <argument>--module</argument>
+                                        <argument>${module.name}/${main.class}</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${project.build.directory}/dist</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>-Dfile.encoding=UTF-8</argument>
+                                        <argument>--license-file</argument>
+                                        <argument>${jpackage.license.file}</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${jpackage.icon}</argument>
+                                        <argument>--linux-package-name</argument>
+                                        <argument>${linux.pkg.name}</argument>
+                                        <argument>--linux-deb-maintainer</argument>
+                                        <argument>${linux.pkg.maintainer}</argument>
+                                        <argument>--linux-menu-group</argument>
+                                        <argument>${linux.pkg.category}</argument>
+                                        <argument>--linux-package-deps</argument>
+                                        <argument>${linux.pkg.deps.deb}</argument>
+                                        <argument>--linux-app-release</argument>
+                                        <argument>${linux.pkg.release}</argument>
+                                        <argument>--linux-app-category</argument>
+                                        <argument>${linux.pkg.category}</argument>
+                                        <argument>--linux-shortcut</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>package-linux-rpm</id>
+            <properties>
+                <skip.jpackage>false</skip.jpackage>
+                <jpackage.icon>${project.basedir}/deploy/app-icon.png</jpackage.icon>
+                <jpackage.license.file>${project.basedir}/LICENSE</jpackage.license.file>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>${exec.maven.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>jpackage</id>
+                                <configuration combine.self="override">
+                                    <executable>jpackage</executable>
+                                    <skip>${skip.jpackage}</skip>
+                                    <arguments>
+                                        <argument>--type</argument>
+                                        <argument>rpm</argument>
+                                        <argument>--name</argument>
+                                        <argument>${app.name}</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${project.version}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>${app.vendor}</argument>
+                                        <argument>--description</argument>
+                                        <argument>${app.description}</argument>
+                                        <argument>--copyright</argument>
+                                        <argument>© ${app.vendor}</argument>
+                                        <argument>--runtime-image</argument>
+                                        <argument>${project.build.directory}/${project.jlink.image.name}</argument>
+                                        <argument>--module</argument>
+                                        <argument>${module.name}/${main.class}</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${project.build.directory}/dist</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>-Dfile.encoding=UTF-8</argument>
+                                        <argument>--license-file</argument>
+                                        <argument>${jpackage.license.file}</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${jpackage.icon}</argument>
+                                        <argument>--linux-package-name</argument>
+                                        <argument>${linux.pkg.name}</argument>
+                                        <argument>--linux-menu-group</argument>
+                                        <argument>${linux.pkg.category}</argument>
+                                        <argument>--linux-package-deps</argument>
+                                        <argument>${linux.pkg.deps.rpm}</argument>
+                                        <argument>--linux-rpm-license-type</argument>
+                                        <argument>${linux.pkg.license}</argument>
+                                        <argument>--linux-app-release</argument>
+                                        <argument>${linux.pkg.release}</argument>
+                                        <argument>--linux-app-category</argument>
+                                        <argument>${linux.pkg.category}</argument>
+                                        <argument>--linux-shortcut</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>package-windows-appimage</id>
+            <properties>
+                <skip.jpackage>false</skip.jpackage>
+                <jpackage.icon>${project.basedir}/deploy/app-icon.ico</jpackage.icon>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>${exec.maven.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>jpackage</id>
+                                <configuration combine.self="override">
+                                    <executable>jpackage</executable>
+                                    <skip>${skip.jpackage}</skip>
+                                    <arguments>
+                                        <argument>--type</argument>
+                                        <argument>app-image</argument>
+                                        <argument>--name</argument>
+                                        <argument>${app.name}</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${project.version}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>${app.vendor}</argument>
+                                        <argument>--description</argument>
+                                        <argument>${app.description}</argument>
+                                        <argument>--copyright</argument>
+                                        <argument>© ${app.vendor}</argument>
+                                        <argument>--runtime-image</argument>
+                                        <argument>${project.build.directory}/${project.jlink.image.name}</argument>
+                                        <argument>--module</argument>
+                                        <argument>${module.name}/${main.class}</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${project.build.directory}/dist</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>-Dfile.encoding=UTF-8</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${jpackage.icon}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>package-windows-exe</id>
+            <properties>
+                <skip.jpackage>false</skip.jpackage>
+                <jpackage.icon>${project.basedir}/deploy/app-icon.ico</jpackage.icon>
+                <jpackage.license.file>${project.basedir}/LICENSE</jpackage.license.file>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>${exec.maven.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>jpackage</id>
+                                <configuration combine.self="override">
+                                    <executable>jpackage</executable>
+                                    <skip>${skip.jpackage}</skip>
+                                    <arguments>
+                                        <argument>--type</argument>
+                                        <argument>exe</argument>
+                                        <argument>--name</argument>
+                                        <argument>${app.name}</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${project.version}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>${app.vendor}</argument>
+                                        <argument>--description</argument>
+                                        <argument>${app.description}</argument>
+                                        <argument>--copyright</argument>
+                                        <argument>© ${app.vendor}</argument>
+                                        <argument>--runtime-image</argument>
+                                        <argument>${project.build.directory}/${project.jlink.image.name}</argument>
+                                        <argument>--module</argument>
+                                        <argument>${module.name}/${main.class}</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${project.build.directory}/dist</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>-Dfile.encoding=UTF-8</argument>
+                                        <argument>--license-file</argument>
+                                        <argument>${jpackage.license.file}</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${jpackage.icon}</argument>
+                                        <argument>--win-dir-chooser</argument>
+                                        <argument>--win-menu</argument>
+                                        <argument>--win-menu-group</argument>
+                                        <argument>${app.name}</argument>
+                                        <argument>--win-shortcut</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>package-mac</id>
+            <properties>
+                <skip.jpackage>false</skip.jpackage>
+                <jpackage.icon>${project.basedir}/deploy/app-icon.icns</jpackage.icon>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>${exec.maven.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>jpackage</id>
+                                <configuration combine.self="override">
+                                    <executable>jpackage</executable>
+                                    <skip>${skip.jpackage}</skip>
+                                    <arguments>
+                                        <argument>--type</argument>
+                                        <argument>app-image</argument>
+                                        <argument>--name</argument>
+                                        <argument>${app.name}</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${project.version}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>${app.vendor}</argument>
+                                        <argument>--description</argument>
+                                        <argument>${app.description}</argument>
+                                        <argument>--copyright</argument>
+                                        <argument>© ${app.vendor}</argument>
+                                        <argument>--runtime-image</argument>
+                                        <argument>${project.build.directory}/${project.jlink.image.name}</argument>
+                                        <argument>--module</argument>
+                                        <argument>${module.name}/${main.class}</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${project.build.directory}/dist</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>-Dfile.encoding=UTF-8</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${jpackage.icon}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

@@ -1,0 +1,681 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_override:
+        description: "Версия для имени архива (необязательно). По умолчанию — имя тега или short SHA"
+        required: false
+        type: string
+
+env:
+  APP_NAME: JFXtu4
+  APP_EXEC: JFXtu4
+  APP_PKG_NAME: jfxtu4
+  JDK_DIST: temurin
+  JDK_VERSION: 21
+
+jobs:
+  # ------------------------------------------------------------------------------------------
+  #  LINUX — 4 артефакта: portable tar.gz, .deb, .rpm, AppImage
+  # ------------------------------------------------------------------------------------------
+  build-linux:
+    name: Linux x64 (deb · rpm · AppImage · tar.gz)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Linux packaging tools (rpmbuild · fakeroot)
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            rpm fakeroot file \
+            libasound2t64 libxss1 libxtst6 libgtk-3-0 libgl1 \
+            desktop-file-utils imagemagick xdg-utils
+
+      - name: Setup JDK ${{ env.JDK_VERSION }} (${{ env.JDK_DIST }})
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JDK_VERSION }}
+          distribution: ${{ env.JDK_DIST }}
+          cache: maven
+
+      - name: Compute version label
+        id: version
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.version_override }}" ]; then
+            VER="${{ github.event.inputs.version_override }}"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VER="${GITHUB_REF_NAME}"
+          else
+            VER="snapshot-$(echo ${GITHUB_SHA::7})"
+          fi
+          VER_CLEAN="$(echo "$VER" | sed 's/^v//')"
+          echo "version=$VER" >> $GITHUB_OUTPUT
+          echo "version_clean=$VER_CLEAN" >> $GITHUB_OUTPUT
+          echo "Using version label: $VER (clean: $VER_CLEAN)"
+
+      - name: Run tests
+        run: mvn -B test
+
+      - name: Build custom JRE with jlink (once for all packages)
+        run: mvn -B javafx:jlink -DskipTests
+
+      # ------------------------------------------------------------------
+      #  1) APP-IMAGE → portable tar.gz
+      # ------------------------------------------------------------------
+      - name: Build app-image (portable)
+        run: mvn -B package -P package-linux-appimage -Dpkg.type=app-image -DskipTests
+
+      - name: Pack portable tar.gz
+        id: pack-tgz
+        working-directory: target/dist
+        run: |
+          VER="${{ steps.version.outputs.version }}"
+          ARCHIVE="${APP_NAME}-${VER}-linux-x64.tar.gz"
+          tar -czf "$ARCHIVE" "${APP_NAME}"
+          echo "archive=${PWD}/${ARCHIVE}" >> $GITHUB_OUTPUT
+          echo "name=${ARCHIVE}" >> $GITHUB_OUTPUT
+          ls -lh "$ARCHIVE"
+
+      # ------------------------------------------------------------------
+      #  2) DEB
+      # ------------------------------------------------------------------
+      - name: Build .deb package
+        run: mvn -B package -P package-linux-deb -DskipTests
+
+      - name: Collect .deb
+        id: collect-deb
+        run: |
+          echo "=== target/dist BEFORE collect deb ==="
+          ls -la target/dist || true
+          cd target/dist
+          DEB="$(ls *.deb 2>/dev/null | head -1)"
+          VER="${{ steps.version.outputs.version }}"
+          if [ -z "$DEB" ]; then
+            echo "ERROR: .deb not found in target/dist. Full listing above." >&2
+            exit 1
+          fi
+          echo "Found .deb: $DEB"
+          OUT="${APP_NAME}-${VER}-linux-x64.deb"
+          mv "$DEB" "$OUT"
+          echo "archive=${PWD}/${OUT}" >> $GITHUB_OUTPUT
+          echo "name=${OUT}" >> $GITHUB_OUTPUT
+          echo "=== target/dist AFTER collect deb ==="
+          ls -lh "${OUT}"
+
+      # ------------------------------------------------------------------
+      #  3) RPM
+      # ------------------------------------------------------------------
+      - name: Build .rpm package
+        run: mvn -B package -P package-linux-rpm -DskipTests
+
+      - name: Collect .rpm
+        id: collect-rpm
+        run: |
+          echo "=== target/dist BEFORE collect rpm ==="
+          ls -la target/dist || true
+          cd target/dist
+          RPM="$(ls *.rpm 2>/dev/null | head -1)"
+          VER="${{ steps.version.outputs.version }}"
+          if [ -z "$RPM" ]; then
+            echo "ERROR: .rpm not found in target/dist. Full listing above." >&2
+            exit 1
+          fi
+          echo "Found .rpm: $RPM"
+          OUT="${APP_NAME}-${VER}-linux-x64.rpm"
+          mv "$RPM" "$OUT"
+          echo "archive=${PWD}/${OUT}" >> $GITHUB_OUTPUT
+          echo "name=${OUT}" >> $GITHUB_OUTPUT
+          echo "=== target/dist AFTER collect rpm ==="
+          ls -lh "${OUT}"
+
+      # ------------------------------------------------------------------
+      #  4) AppImage (через appimagetool напрямую, БЕЗ linuxdeploy)
+      #     linuxdeploy ломает RPATH у jpackage launcher'а.
+      #     Мы просто берём готовый jpackage app-image и заворачиваем
+      #     его в AppImage через appimagetool с кастомным bash AppRun.
+      # ------------------------------------------------------------------
+      - name: Build AppImage
+        id: pack-appimage
+        run: |
+          set -euo pipefail
+          VER="${{ steps.version.outputs.version }}"
+          VER_CLEAN="${{ steps.version.outputs.version_clean }}"
+          SRC_APPIMAGE="target/dist/${APP_NAME}"
+          OUTPUT="${APP_NAME}-${VER}-linux-x64.AppImage"
+
+          download_with_retry() {
+            # $1 = output file, $2..$N = URLs
+            local out="$1"; shift
+            local urls=("$@")
+            local url rc=0
+            mkdir -p "$(dirname "$out")"
+            for url in "${urls[@]}"; do
+              echo "  → Trying $url ..."
+              set +e
+              wget --tries=3 --waitretry=3 --retry-connrefused --no-verbose -O "$out" "$url"
+              rc=$?
+              set -e
+              if [ "$rc" -eq 0 ] && [ -s "$out" ]; then
+                local mime sz
+                mime="$(file -b --mime-type "$out" 2>/dev/null || true)"
+                sz="$(stat -c%s "$out" 2>/dev/null || echo 0)"
+                echo "    Downloaded ${sz} bytes, mime=${mime}"
+                if [ "$sz" -gt 500000 ]; then
+                  echo "    OK (size=$sz)"
+                  return 0
+                fi
+                echo "    WARN: file too small ($sz bytes), probably 404 HTML. Trying next URL..."
+                rm -f "$out"
+              else
+                echo "    WARN: wget rc=$rc. Trying next URL..."
+                rm -f "$out"
+              fi
+            done
+            echo "ERROR: failed to download $out from all URLs" >&2
+            return 1
+          }
+
+          echo "=== Debug: listing target/dist ==="
+          ls -la target/dist/ || true
+          echo "=== SRC_APPIMAGE = $SRC_APPIMAGE, exists? ==="
+          if [ ! -d "$SRC_APPIMAGE" ]; then
+            echo "ERROR: SRC_APPIMAGE directory not found at $SRC_APPIMAGE" >&2
+            exit 1
+          fi
+          ls -la "$SRC_APPIMAGE"
+
+          # Скачиваем appimagetool (только он нам нужен — без linuxdeploy!)
+          APPIMAGETOOL_PINNED="https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage"
+          APPIMAGETOOL_CONT="https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+          echo "=== Downloading appimagetool ==="
+          download_with_retry ./appimagetool "$APPIMAGETOOL_PINNED" "$APPIMAGETOOL_CONT"
+          chmod +x ./appimagetool
+          export APPIMAGE_EXTRACT_AND_RUN=1
+
+          # Готовим AppDir структуру из готового jpackage app-image
+          APPDIR_ROOT="$(mktemp -d)"
+          APPDIR="${APPDIR_ROOT}/AppDir"
+          mkdir -p "${APPDIR}/usr"
+          cp -a "${SRC_APPIMAGE}/." "${APPDIR}/usr/"
+
+          echo "=== AppDir/usr structure after copy ==="
+          ls -la "${APPDIR}/usr/"
+          echo "=== Looking for ${APP_EXEC} binary ==="
+          find "${APPDIR}" -name "${APP_EXEC}" -type f 2>/dev/null || true
+          echo "=== Looking for libjvm and runtime structure ==="
+          find "${APPDIR}" -name "libjvm*" 2>/dev/null | head -10 || true
+          find "${APPDIR}" -type d -name "runtime" 2>/dev/null | head -5 || true
+
+          # Находим runtime директорию (jpackage кладёт JRE либо в lib/runtime, либо lib/jvm)
+          RUNTIME_DIR=""
+          if [ -d "${APPDIR}/usr/lib/runtime" ]; then
+            RUNTIME_DIR="${APPDIR}/usr/lib/runtime"
+          elif [ -d "${APPDIR}/usr/lib/jvm" ]; then
+            RUNTIME_DIR="${APPDIR}/usr/lib/jvm"
+          else
+            FOUND_RT="$(find "${APPDIR}" -type d -name "runtime" 2>/dev/null | head -1 || true)"
+            [ -n "$FOUND_RT" ] && RUNTIME_DIR="$FOUND_RT"
+          fi
+          echo "Detected RUNTIME_DIR=$RUNTIME_DIR"
+
+          # ------------------------------------------------------------------
+          # Критичный фикс ошибки:
+          #   Error: could not open `.../usr/lib/jvm.cfg'
+          # jpackage launcher ищет jvm.cfg по пути
+          #   $LAUNCHER_DIR/../lib/jvm.cfg  (то есть usr/lib/jvm.cfg)
+          # а реальный JRE лежит в usr/lib/runtime/lib/.
+          # Решение: делаем симлинки в usr/lib/ на файлы из runtime/lib/
+          # ------------------------------------------------------------------
+          if [ -n "$RUNTIME_DIR" ] && [ -f "${RUNTIME_DIR}/lib/jvm.cfg" ]; then
+            echo "=== Symlink jvm.cfg и .so из runtime/lib → usr/lib ==="
+            # jvm.cfg
+            [ ! -e "${APPDIR}/usr/lib/jvm.cfg" ] && ln -sv "runtime/lib/jvm.cfg" "${APPDIR}/usr/lib/jvm.cfg" || true
+            # server/ с libjvm.so внутри
+            if [ -d "${RUNTIME_DIR}/lib/server" ] && [ ! -e "${APPDIR}/usr/lib/server" ]; then
+              ln -sv "runtime/lib/server" "${APPDIR}/usr/lib/server" || true
+            fi
+            # client/ (может быть в некоторых JRE)
+            if [ -d "${RUNTIME_DIR}/lib/client" ] && [ ! -e "${APPDIR}/usr/lib/client" ]; then
+              ln -sv "runtime/lib/client" "${APPDIR}/usr/lib/client" || true
+            fi
+            # modules, security, legal — тоже директории
+            for sub in modules security legal; do
+              if [ -d "${RUNTIME_DIR}/lib/${sub}" ] && [ ! -e "${APPDIR}/usr/lib/${sub}" ]; then
+                ln -sv "runtime/lib/${sub}" "${APPDIR}/usr/lib/${sub}" || true
+              fi
+            done
+            # И все .so / .so.* первого уровня (libjava.so, libnio.so и т.д.)
+            if [ -d "${RUNTIME_DIR}/lib" ]; then
+              find "${RUNTIME_DIR}/lib" -maxdepth 1 -type f \( -name "*.so" -o -name "*.so.*" -o -name "*.jar" -o -name "*.properties" \) -print0 | while IFS= read -r -d '' f; do
+                bn="$(basename "$f")"
+                if [ ! -e "${APPDIR}/usr/lib/${bn}" ]; then
+                  ln -sv "runtime/lib/${bn}" "${APPDIR}/usr/lib/${bn}" || true
+                fi
+              done
+            fi
+            # И текстовики вроде release, tzdb.dat
+            find "${RUNTIME_DIR}/lib" -maxdepth 1 -type f -not -name "*.so*" -print0 | while IFS= read -r -d '' f; do
+              bn="$(basename "$f")"
+              if [ ! -e "${APPDIR}/usr/lib/${bn}" ]; then
+                ln -sv "runtime/lib/${bn}" "${APPDIR}/usr/lib/${bn}" || true
+              fi
+            done
+          fi
+          echo "=== Resulting usr/lib structure (first 40 lines) ==="
+          ls -la "${APPDIR}/usr/lib/" | head -40
+
+          # Desktop-файл и иконки для AppImage
+          mkdir -p "${APPDIR}/usr/share/applications"
+          cp deploy/jfxtu4.desktop "${APPDIR}/usr/share/applications/jfxtu4.desktop"
+          cp deploy/jfxtu4.desktop "${APPDIR}/jfxtu4.desktop"
+
+          # Проставляем Exec и Icon в desktop-файлах
+          sed -i "s|^Exec=.*|Exec=${APP_EXEC} %U|" "${APPDIR}/usr/share/applications/jfxtu4.desktop"
+          sed -i "s|^Exec=.*|Exec=${APP_EXEC} %U|" "${APPDIR}/jfxtu4.desktop"
+          sed -i "s|^Icon=.*|Icon=jfxtu4|" "${APPDIR}/usr/share/applications/jfxtu4.desktop"
+          sed -i "s|^Icon=.*|Icon=jfxtu4|" "${APPDIR}/jfxtu4.desktop"
+          echo "=== Desktop file after patch ==="
+          cat "${APPDIR}/usr/share/applications/jfxtu4.desktop"
+
+          # Валидируем desktop-файл (не фатально, но логируем)
+          desktop-file-validate "${APPDIR}/usr/share/applications/jfxtu4.desktop" || true
+
+          # Иконки: .png в разных размерах
+          for sz in 32 48 64 128 256 512; do
+            mkdir -p "${APPDIR}/usr/share/icons/hicolor/${sz}x${sz}/apps"
+          done
+          if command -v convert >/dev/null 2>&1; then
+            for sz in 32 48 64 128 256 512; do
+              convert deploy/app-icon.png -resize "${sz}x${sz}" "${APPDIR}/usr/share/icons/hicolor/${sz}x${sz}/apps/jfxtu4.png"
+            done
+          else
+            for sz in 32 48 64 128 256 512; do
+              cp deploy/app-icon.png "${APPDIR}/usr/share/icons/hicolor/${sz}x${sz}/apps/jfxtu4.png"
+            done
+          fi
+          cp deploy/app-icon.png "${APPDIR}/jfxtu4.png"
+          cp deploy/app-icon.png "${APPDIR}/.DirIcon"
+
+          # ------------------------------------------------------------------
+          # Кастомный bash AppRun (наш собственный, не от linuxdeploy).
+          # $HERE — каталог, куда смонтирован AppImage при запуске.
+          # Выставляем LD_LIBRARY_PATH с путями до JRE библиотек и
+          # через exec запускаем jpackage launcher напрямую.
+          # ------------------------------------------------------------------
+          APP_BIN=""
+          if [ -x "${APPDIR}/usr/bin/${APP_EXEC}" ]; then
+            APP_BIN="${APPDIR}/usr/bin/${APP_EXEC}"
+          elif [ -x "${APPDIR}/usr/lib/${APP_EXEC}" ]; then
+            APP_BIN="${APPDIR}/usr/lib/${APP_EXEC}"
+          else
+            # fallback — поищем везде в APPDIR
+            APP_BIN="$(find "${APPDIR}" -maxdepth 5 -name "${APP_EXEC}" -type f -executable 2>/dev/null | head -1 || true)"
+          fi
+          if [ -z "$APP_BIN" ] || [ ! -x "$APP_BIN" ]; then
+            echo "ERROR: executable ${APP_EXEC} not found in AppDir" >&2
+            echo "Listing executables in AppDir:"
+            find "${APPDIR}" -maxdepth 5 -type f -executable 2>/dev/null || true
+            exit 1
+          fi
+          # Относительный путь от корня APPDIR (для подстановки в AppRun)
+          APP_BIN_REL="$(realpath --relative-to="$APPDIR" "$APP_BIN")"
+          echo "Final APP_BIN=$APP_BIN  (relative: $APP_BIN_REL)"
+
+          # ------------------------------------------------------------------
+          # Кастомный bash AppRun — пишем файл через echo-построчно,
+          # чтобы избежать проблем с heredoc/YAML escaping.
+          # ------------------------------------------------------------------
+          APPRUN_FILE="${APPDIR}/AppRun"
+          {
+            echo '#!/usr/bin/env bash'
+            echo 'set -e'
+            echo 'HERE="$(cd "$(dirname "${0}")" && pwd)"'
+            echo '# LD path for JRE native libs (libjava.so needs to find libjvm.so)'
+            echo 'export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/lib/runtime/lib:${HERE}/usr/lib/runtime/lib/server${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"'
+            echo '# Launch jpackage launcher via exec (no leftover bash process)'
+            echo "exec \"\${HERE}/${APP_BIN_REL}\" \"\$@\""
+          } > "${APPRUN_FILE}"
+          chmod +x "${APPRUN_FILE}"
+          echo "=== AppRun contents ==="
+          cat "${APPRUN_FILE}"
+
+          echo "=== Final AppDir root listing ==="
+          ls -la "${APPDIR}"
+
+          # Запускаем appimagetool → получаем готовый AppImage в PWD
+          export VERSION="$VER_CLEAN"
+          export ARCH="x86_64"
+          set +e
+          ./appimagetool -v -n "${APPDIR}" "${OUTPUT}" 2>&1 | tail -40
+          AIMG_RC=$?
+          set -e
+          if [ "$AIMG_RC" -ne 0 ] || [ ! -f "${OUTPUT}" ]; then
+            echo "WARN: primary appimagetool failed (rc=$AIMG_RC). Retrying with explicit -d/-i..."
+            set +e
+            ./appimagetool -v -n \
+              -d "${APPDIR}/usr/share/applications/jfxtu4.desktop" \
+              -i "${APPDIR}/usr/share/icons/hicolor/512x512/apps/jfxtu4.png" \
+              "${APPDIR}" "${OUTPUT}" 2>&1 | tail -60
+            AIMG_RC=$?
+            set -e
+          fi
+
+          if [ "$AIMG_RC" -ne 0 ] || [ ! -f "${OUTPUT}" ]; then
+            echo "ERROR: appimagetool failed both attempts (rc=$AIMG_RC, OUTPUT exists? $(test -f "$OUTPUT" && echo yes || echo no))" >&2
+            ls -la
+            exit 1
+          fi
+          chmod +x "${OUTPUT}"
+          ls -lh "${OUTPUT}"
+          echo "archive=${PWD}/${OUTPUT}" >> $GITHUB_OUTPUT
+          echo "name=${OUTPUT}" >> $GITHUB_OUTPUT
+
+      # ------------------------------------------------------------------
+      #  Upload workflow artifacts (all 4)
+      # ------------------------------------------------------------------
+      - name: Upload portable tar.gz
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-${{ steps.version.outputs.version }}-linux-x64-portable
+          path: ${{ steps.pack-tgz.outputs.archive }}
+          compression-level: 0
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-${{ steps.version.outputs.version }}-linux-x64-deb
+          path: ${{ steps.collect-deb.outputs.archive }}
+          compression-level: 0
+
+      - name: Upload .rpm
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-${{ steps.version.outputs.version }}-linux-x64-rpm
+          path: ${{ steps.collect-rpm.outputs.archive }}
+          compression-level: 0
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-${{ steps.version.outputs.version }}-linux-x64-AppImage
+          path: ${{ steps.pack-appimage.outputs.archive }}
+          compression-level: 0
+
+      # ------------------------------------------------------------------
+      #  Stash for release job
+      # ------------------------------------------------------------------
+      - name: Stash release assets (Linux ×4)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-asset--linux-x64
+          path: |
+            ${{ steps.pack-tgz.outputs.archive }}
+            ${{ steps.collect-deb.outputs.archive }}
+            ${{ steps.collect-rpm.outputs.archive }}
+            ${{ steps.pack-appimage.outputs.archive }}
+          compression-level: 0
+
+
+  # ------------------------------------------------------------------------------------------
+  #  WINDOWS — portable zip + .exe installer (WiX Toolset)
+  # ------------------------------------------------------------------------------------------
+  build-windows:
+    name: Windows x64 (exe · zip)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup JDK ${{ env.JDK_VERSION }} (${{ env.JDK_DIST }})
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JDK_VERSION }}
+          distribution: ${{ env.JDK_DIST }}
+          cache: maven
+
+      - name: Ensure WiX Toolset (for EXE installer)
+        shell: pwsh
+        run: |
+          $light = Get-Command light.exe -ErrorAction SilentlyContinue
+          if ($light) {
+            Write-Host "WiX already available: $($light.Source)"
+            exit 0
+          }
+          Write-Host "WiX not found, installing via choco..."
+          choco install -y wixtoolset
+          if ($LASTEXITCODE -ne 0) {
+            $env:PATH += ";C:\\Program Files (x86)\\WiX Toolset v3.11\\bin"
+          }
+          $light = Get-Command light.exe -ErrorAction Stop
+          Write-Host "WiX installed: $($light.Source)"
+
+      - name: Compute version label
+        id: version
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.version_override }}" ]; then
+            VER="${{ github.event.inputs.version_override }}"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VER="${GITHUB_REF_NAME}"
+          else
+            VER="snapshot-$(echo ${GITHUB_SHA::7})"
+          fi
+          echo "version=$VER" >> $GITHUB_OUTPUT
+          echo "Using version label: $VER"
+
+      - name: Run tests
+        shell: bash
+        run: mvn -B test
+
+      - name: Build custom JRE with jlink
+        shell: bash
+        run: mvn -B javafx:jlink -DskipTests
+
+      # ------------------------------------------------------------------
+      #  1) APP-IMAGE → portable ZIP
+      # ------------------------------------------------------------------
+      - name: Build app-image (portable)
+        shell: bash
+        run: mvn -B package -P package-windows-appimage -DskipTests
+
+      - name: Pack portable zip
+        id: pack-zip
+        shell: pwsh
+        working-directory: target/dist
+        run: |
+          $ver = "${{ steps.version.outputs.version }}"
+          $archive = "JFXtu4-$ver-windows-x64.zip"
+          7z a -tzip -mx=9 -r "$archive" "JFXtu4\*" | Select-Object -Last 5
+          $item = Get-Item $archive
+          Write-Output "archive=$($item.FullName)" >> $env:GITHUB_OUTPUT
+          Write-Output "name=$($item.Name)" >> $env:GITHUB_OUTPUT
+          $item | Select-Object Name, Length
+
+      # ------------------------------------------------------------------
+      #  2) .EXE installer
+      # ------------------------------------------------------------------
+      - name: Build EXE installer
+        shell: bash
+        run: mvn -B package -P package-windows-exe -Dpkg.type=exe -DskipTests
+
+      - name: Collect EXE
+        id: collect-exe
+        shell: pwsh
+        run: |
+          Write-Host "=== target/dist BEFORE collect exe ==="
+          Get-ChildItem target/dist
+          $ver = "${{ steps.version.outputs.version }}"
+          $src = Get-ChildItem "target/dist\\*.exe" | Select-Object -First 1
+          if (-not $src) {
+            Write-Error ".exe installer not found in target/dist — see listing above."
+            exit 1
+          }
+          Write-Host "Found .exe: $($src.FullName)"
+          $out = "JFXtu4-$ver-windows-x64.exe"
+          Move-Item $src.FullName (Join-Path (Get-Location) $out) -Force
+          $item = Get-Item $out
+          Write-Output "archive=$($item.FullName)" >> $env:GITHUB_OUTPUT
+          Write-Output "name=$($item.Name)" >> $env:GITHUB_OUTPUT
+          $item | Select-Object Name, Length
+
+      # ------------------------------------------------------------------
+      #  Upload artifacts
+      # ------------------------------------------------------------------
+      - name: Upload portable zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-${{ steps.version.outputs.version }}-windows-x64-portable
+          path: ${{ steps.pack-zip.outputs.archive }}
+          compression-level: 0
+
+      - name: Upload EXE installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-${{ steps.version.outputs.version }}-windows-x64-exe
+          path: ${{ steps.collect-exe.outputs.archive }}
+          compression-level: 0
+
+      - name: Stash release assets (Windows ×2)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-asset--windows-x64
+          path: |
+            ${{ steps.pack-zip.outputs.archive }}
+            ${{ steps.collect-exe.outputs.archive }}
+          compression-level: 0
+
+
+  # ------------------------------------------------------------------------------------------
+  #  MACOS Apple Silicon (aarch64) — tar.gz with .app
+  # ------------------------------------------------------------------------------------------
+  build-mac-arm:
+    name: macOS Apple Silicon (aarch64)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup JDK ${{ env.JDK_VERSION }} (${{ env.JDK_DIST }})
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JDK_VERSION }}
+          distribution: ${{ env.JDK_DIST }}
+          cache: maven
+          architecture: aarch64
+
+      - name: Compute version label
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version_override }}" ]; then
+            VER="${{ github.event.inputs.version_override }}"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VER="${GITHUB_REF_NAME}"
+          else
+            VER="snapshot-$(echo ${GITHUB_SHA::7})"
+          fi
+          echo "version=$VER" >> $GITHUB_OUTPUT
+
+      - name: Run tests
+        run: mvn -B test
+
+      - name: Build jlink runtime-image
+        run: mvn -B javafx:jlink -DskipTests
+
+      - name: Build app-bundle
+        run: mvn -B package -P package-mac -Dpkg.type=app-image -DskipTests
+
+      - name: Pack tar.gz
+        id: pack
+        working-directory: target/dist
+        run: |
+          VER="${{ steps.version.outputs.version }}"
+          ARCHIVE="${APP_NAME}-${VER}-macos-aarch64.tar.gz"
+          tar -czf "$ARCHIVE" "${APP_NAME}.app"
+          echo "archive=${PWD}/${ARCHIVE}" >> $GITHUB_OUTPUT
+          echo "name=${ARCHIVE}" >> $GITHUB_OUTPUT
+          ls -lh "$ARCHIVE"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-${{ steps.version.outputs.version }}-macos-aarch64
+          path: ${{ steps.pack.outputs.archive }}
+          compression-level: 0
+
+      - name: Stash release asset
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-asset--macos-aarch64
+          path: ${{ steps.pack.outputs.archive }}
+          compression-level: 0
+
+
+  # ------------------------------------------------------------------------------------------
+  #  RELEASE — aggregate artifacts and create GitHub Release
+  # ------------------------------------------------------------------------------------------
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-linux, build-windows, build-mac-arm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout (for LICENSE / docs)
+        uses: actions/checkout@v4
+
+      - name: Download all release assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-asset--*
+          path: release-assets
+          merge-multiple: true
+
+      - name: List release assets (before flatten)
+        run: |
+          echo "=== Tree view ==="
+          find release-assets -print | sort
+
+      - name: Flatten release assets (move files from subdirs into release-assets/)
+        run: |
+          set -e
+          cd release-assets
+          # Перемещаем все файлы из подпапок в текущую (release-assets/)
+          find . -mindepth 2 -type f -print0 | while IFS= read -r -d '' f; do
+            base="$(basename "$f")"
+            if [ -e "./$base" ]; then
+              echo "SKIP (exists): $f → $base"
+            else
+              echo "MOVE: $f → $base"
+              mv "$f" "./$base"
+            fi
+          done
+          # Чистим теперь пустые подпапки
+          find . -mindepth 1 -maxdepth 1 -type d -print0 | xargs -0 rm -rf --
+          echo "=== Now release-assets/ contents ==="
+          ls -lah
+
+      - name: List release assets (final)
+        run: ls -lh release-assets/
+
+      - name: Generate checksums
+        working-directory: release-assets
+        run: find . -maxdepth 1 -type f -not -name 'SHA256SUMS' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && ls -lh SHA256SUMS && cat SHA256SUMS
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            release-assets/*

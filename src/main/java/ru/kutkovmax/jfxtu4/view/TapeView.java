@@ -15,7 +15,7 @@ public class TapeView extends Canvas {
 
     private static final double CELL_SIZE = 40;
     private static final double FONT_SIZE = 20;
-    private static final String FONT_FAMILY = "Consolas";
+    private static final String FONT_FAMILY = "JetBrains Mono";
 
     private static final Color CANVAS_BG_COLOR = Color.web("#2b2b2b");
     private static final Color CELL_BG_COLOR = Color.web("#1e1e1e");
@@ -141,6 +141,10 @@ public class TapeView extends Canvas {
 
         if (w == 0 || h == 0) return;
 
+        Tape.TapeSnapshotForRender snap = tape.snapshotForRender();
+        char[] cells = snap.cellsCopy();
+        int headPos = snap.headPosition();
+
         gc.setFont(Font.font(FONT_FAMILY, FONT_SIZE));
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(VPos.CENTER);
@@ -172,15 +176,15 @@ public class TapeView extends Canvas {
                 gc.strokeRect(x + 1, y + 1, CELL_SIZE - 2, CELL_SIZE - 2);
             }
 
-            char c = tape.readAt(index);
-            if (c != ' ' && c != '\0') {
+            char c = (index < 0 || index >= cells.length) ? BLANK_CHAR_FALLBACK : cells[index];
+            if (c != BLANK_CHAR_FALLBACK) {
                 gc.setFill(TEXT_COLOR);
                 gc.fillText(String.valueOf(c), x + CELL_SIZE / 2, y + CELL_SIZE / 2);
             }
         }
 
         if (!editable) {
-            double headX = (tape.getHeadPosition() * CELL_SIZE) - currentVisualPixelOffset;
+            double headX = (headPos * CELL_SIZE) - currentVisualPixelOffset;
 
             gc.setFill(HEAD_BG_COLOR);
             gc.fillRect(headX, y, CELL_SIZE, CELL_SIZE);
@@ -189,13 +193,15 @@ public class TapeView extends Canvas {
             gc.setLineWidth(2);
             gc.strokeRect(headX, y, CELL_SIZE, CELL_SIZE);
 
-            char c = tape.readAt(tape.getHeadPosition());
-            if (c != ' ' && c != '\0') {
+            char c = (headPos < 0 || headPos >= cells.length) ? BLANK_CHAR_FALLBACK : cells[headPos];
+            if (c != BLANK_CHAR_FALLBACK) {
                 gc.setFill(TEXT_COLOR);
                 gc.fillText(String.valueOf(c), headX + CELL_SIZE / 2, y + CELL_SIZE / 2);
             }
         }
     }
+
+    private static final char BLANK_CHAR_FALLBACK = ' ';
 
     private void ensureCursorVisible() {
         ensureVisible(cursorIndex);
