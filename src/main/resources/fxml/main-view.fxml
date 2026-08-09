@@ -85,6 +85,18 @@
                 <Label fx:id="helpManualCmdStay" text="%help.manual.cmd.stay" />
                 <Label fx:id="helpManualCmdHalt" text="%help.manual.cmd.halt" />
             </VBox>
+
+            <Label fx:id="helpHotkeysTitle" text="%help.hotkeys.title" styleClass="help-header" />
+            <VBox spacing="2">
+                <Label fx:id="helpHotkeysEditRun" text="%help.hotkeys.edit.run" />
+                <Label fx:id="helpHotkeysEditTapeEnter" text="%help.hotkeys.edit.tape.enter" />
+                <Label fx:id="helpHotkeysRunToggleQuick" text="%help.hotkeys.run.toggle_quick" />
+                <Label fx:id="helpHotkeysRunStep" text="%help.hotkeys.run.step" />
+                <Label fx:id="helpHotkeysRunStop" text="%help.hotkeys.run.stop" />
+            </VBox>
+
+            <Label fx:id="helpExampleTitle" text="%help.example.title" styleClass="help-header" />
+            <Label fx:id="helpExampleText" text="%help.example.text" wrapText="true" style="-fx-font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace; -fx-font-size: 13px;" />
         </VBox>
     </ScrollPane>
 </VBox>

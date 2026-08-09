@@ -3,12 +3,14 @@ package ru.kutkovmax.jfxtu4.model;
 public class TuringMachine {
     private final Tape tape;
     private final Program program;
+    private final StateTable stateTable;
     private int currentStateId;
     private boolean stalled = false;
 
     public TuringMachine(Tape tape, Program program) {
         this.tape = tape;
         this.program = program;
+        this.stateTable = program.stateTable();
         this.currentStateId = program.startState();
     }
 
@@ -23,7 +25,7 @@ public class TuringMachine {
             stalled = true;
             throw new MachineException(
                     MachineException.Type.UNDEFINED_TRANSITION,
-                    currentStateId,
+                    stateTable.getName(currentStateId),
                     String.valueOf(currentSymbol)
             );
         }

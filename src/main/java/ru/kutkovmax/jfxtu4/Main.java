@@ -20,7 +20,7 @@ public class Main extends Application {
 
     static {
         String v = Main.class.getPackage().getImplementationVersion();
-        VERSION = (v == null) ? "dev" : v;
+        VERSION = (v == null) ? "1.0.0" : v;
     }
 
     public static void main(String[] args) {

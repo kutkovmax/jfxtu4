@@ -7,6 +7,8 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
+import javafx.event.EventHandler;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
@@ -55,6 +57,16 @@ public class MachineController {
     @FXML private Label helpManualCmdStay;
     @FXML private Label helpManualCmdHalt;
 
+    @FXML private Label helpHotkeysTitle;
+    @FXML private Label helpHotkeysEditRun;
+    @FXML private Label helpHotkeysEditTapeEnter;
+    @FXML private Label helpHotkeysRunToggleQuick;
+    @FXML private Label helpHotkeysRunStep;
+    @FXML private Label helpHotkeysRunStop;
+
+    @FXML private Label helpExampleTitle;
+    @FXML private Label helpExampleText;
+
 
     @FXML private StackPane tapeContainer;
     @FXML private TextArea programInput;
@@ -80,6 +92,8 @@ public class MachineController {
     private Thread instantRunThread;
     private volatile boolean instantRunCancelled;
 
+    private final EventHandler<MouseEvent> consumeMouseHandler = MouseEvent::consume;
+
     @FXML
     public void initialize() {
         bundle = ResourceBundle.getBundle("messages", currentLocale);
@@ -90,8 +104,47 @@ public class MachineController {
         this.tapeView.widthProperty().bind(tapeContainer.widthProperty());
         this.tapeView.heightProperty().bind(tapeContainer.heightProperty());
         this.tapeContainer.getChildren().add(tapeView);
+
+        programInput.getStyleClass().add("edit-mode");
+
+        rootBox.addEventFilter(KeyEvent.KEY_PRESSED, this::handleGlobalKeyPressed);
+
         updateTexts();
         initHandlers();
+    }
+
+    private boolean isInRunMode() {
+        return !startButton.isVisible();
+    }
+
+    private void handleGlobalKeyPressed(KeyEvent event) {
+        KeyCode code = event.getCode();
+        boolean ctrl = event.isControlDown() || event.isShortcutDown();
+
+        if (isInRunMode()) {
+            if (code == KeyCode.ESCAPE) {
+                handleBackToEdit();
+                event.consume();
+                return;
+            }
+            if (code == KeyCode.SPACE) {
+                handleStep();
+                event.consume();
+                return;
+            }
+            if (code == KeyCode.ENTER) {
+                handleQuickRun();
+                event.consume();
+                return;
+            }
+        } else {
+            if (ctrl && code == KeyCode.ENTER) {
+                if (startButton.isVisible()) {
+                    handleStart();
+                    event.consume();
+                }
+            }
+        }
     }
 
     private void initHandlers() {
@@ -153,6 +206,15 @@ public class MachineController {
         } else {
             setStatus("info.finished");
         }
+        enterStalledState();
+    }
+
+    private void enterStalledState() {
+        stepButton.setVisible(false);
+        quickButton.setVisible(false);
+        instantButton.setVisible(false);
+        backToEditButton.setVisible(true);
+        programInput.deselect();
     }
 
     private void updateTexts() {
@@ -186,6 +248,16 @@ public class MachineController {
         helpManualCmdStay.setText(bundle.getString("help.manual.cmd.stay"));
         helpManualCmdHalt.setText(bundle.getString("help.manual.cmd.halt"));
 
+        helpHotkeysTitle.setText(bundle.getString("help.hotkeys.title"));
+        helpHotkeysEditRun.setText(bundle.getString("help.hotkeys.edit.run"));
+        helpHotkeysEditTapeEnter.setText(bundle.getString("help.hotkeys.edit.tape.enter"));
+        helpHotkeysRunToggleQuick.setText(bundle.getString("help.hotkeys.run.toggle_quick"));
+        helpHotkeysRunStep.setText(bundle.getString("help.hotkeys.run.step"));
+        helpHotkeysRunStop.setText(bundle.getString("help.hotkeys.run.stop"));
+
+        helpExampleTitle.setText(bundle.getString("help.example.title"));
+        helpExampleText.setText(bundle.getString("help.example.text"));
+
         if (langButton.getScene() != null && langButton.getScene().getWindow() != null) {
             Stage stage = (Stage) langButton.getScene().getWindow();
             stage.setTitle(bundle.getString("app.title") + " v" + Main.VERSION);
@@ -206,6 +278,14 @@ public class MachineController {
             this.machine = new TuringMachine(tapeView.getTape(), program);
 
             tapeView.setEditable(false);
+            programInput.setEditable(false);
+
+            programInput.getStyleClass().remove("edit-mode");
+            programInput.getStyleClass().add("run-mode");
+
+            programInput.addEventFilter(MouseEvent.MOUSE_PRESSED, consumeMouseHandler);
+            programInput.addEventFilter(MouseEvent.MOUSE_DRAGGED, consumeMouseHandler);
+            programInput.addEventFilter(MouseEvent.MOUSE_RELEASED, consumeMouseHandler);
 
             startButton.setVisible(false);
             stepButton.setVisible(true);
@@ -219,6 +299,10 @@ public class MachineController {
     }
 
     private void handleStep() {
+        if (machine == null || machine.isStalled()) {
+            return;
+        }
+        stopExecution();
         try {
             machine.step();
             tapeView.renderTape();
@@ -230,10 +314,14 @@ public class MachineController {
             }
         } catch (MachineException e) {
             setStatus(e.getType().getKey(), e.getArgs());
+            enterStalledState();
         }
     }
 
     private void handleQuickRun() {
+        if (machine == null || machine.isStalled()) {
+            return;
+        }
         if (quickTimeline != null && quickTimeline.getStatus() == Animation.Status.RUNNING) {
             stopExecution();
             return;
@@ -255,6 +343,7 @@ public class MachineController {
             } catch (MachineException e) {
                 stopQuickTimer();
                 setStatus(e.getType().getKey(), e.getArgs());
+                enterStalledState();
             }
         }));
 
@@ -284,6 +373,9 @@ public class MachineController {
     }
 
     private void handleInstantRun() {
+        if (machine == null || machine.isStalled()) {
+            return;
+        }
         stopExecution();
 
         instantRunCancelled = false;
@@ -324,6 +416,7 @@ public class MachineController {
                 Platform.runLater(() -> {
                     tapeView.renderTape();
                     setStatus(e.getType().getKey(), e.getArgs());
+                    enterStalledState();
                 });
             }
         }, "Instant-Run-Thread");
@@ -394,6 +487,13 @@ public class MachineController {
         programInput.deselect();
         programInput.setEditable(true);
         tapeView.setEditable(true);
+
+        programInput.removeEventFilter(MouseEvent.MOUSE_PRESSED, consumeMouseHandler);
+        programInput.removeEventFilter(MouseEvent.MOUSE_DRAGGED, consumeMouseHandler);
+        programInput.removeEventFilter(MouseEvent.MOUSE_RELEASED, consumeMouseHandler);
+
+        programInput.getStyleClass().remove("run-mode");
+        programInput.getStyleClass().add("edit-mode");
     }
 
     private void setStatus(String key, Object... args) {

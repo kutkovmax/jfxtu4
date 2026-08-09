@@ -95,8 +95,15 @@
     -fx-control-inner-background: #1e1e1e;
     -fx-background-color: #555555, #1e1e1e;
     -fx-background-insets: 0, 1;
-    -fx-highlight-fill: #2e7d32;
     -fx-highlight-text-fill: #ffffff;
+}
+
+.code-editor.edit-mode {
+    -fx-highlight-fill: #284B72;
+}
+
+.code-editor.run-mode {
+    -fx-highlight-fill: #2e7d32;
 }
 
 .code-editor:focused {
