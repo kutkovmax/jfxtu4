@@ -44,6 +44,16 @@
         <!-- jpackage sources (overridden per OS profile) -->
         <jpackage.icon></jpackage.icon>
         <jpackage.license.file>${project.basedir}/LICENSE</jpackage.license.file>
+        <!--
+             macOS jpackage (CFBundleVersion) allows 1..3 numbers only (1, 1.2, 1.2.3).
+             Windows ProductVersion/FileVersion traditionally have 4 numbers (a.b.c.d).
+             Linux packages (deb/rpm) accept both fine.
+
+             Strategy:
+              - jpackage.app.version default = 4-part project.version.0 (Win/Linux OK)
+              - profile 'package-mac' overrides back to 3-part ${project.version} (macOS OK)
+        -->
+        <jpackage.app.version>${project.version}.0</jpackage.app.version>
     </properties>
 
     <dependencies>
@@ -140,19 +150,20 @@
                                 <argument>--name</argument>
                                 <argument>${app.name}</argument>
                                 <argument>--app-version</argument>
-                                <argument>${project.version}</argument>
+                                <argument>${jpackage.app.version}</argument>
                                 <argument>--vendor</argument>
                                 <argument>${app.vendor}</argument>
                                 <argument>--description</argument>
                                 <argument>${app.description}</argument>
                                 <argument>--copyright</argument>
-                                <argument>© ${app.vendor}</argument>
+                                <argument>(c) ${app.vendor}</argument>
                                 <argument>--runtime-image</argument>
                                 <argument>${project.build.directory}/${project.jlink.image.name}</argument>
                                 <argument>--module</argument>
                                 <argument>${module.name}/${main.class}</argument>
                                 <argument>--dest</argument>
                                 <argument>${project.build.directory}/dist</argument>
+                                <argument>--verbose</argument>
                                 <argument>--java-options</argument>
                                 <argument>-Dfile.encoding=UTF-8</argument>
                             </arguments>
@@ -188,19 +199,20 @@
                                         <argument>--name</argument>
                                         <argument>${app.name}</argument>
                                         <argument>--app-version</argument>
-                                        <argument>${project.version}</argument>
+                                        <argument>${jpackage.app.version}</argument>
                                         <argument>--vendor</argument>
                                         <argument>${app.vendor}</argument>
                                         <argument>--description</argument>
                                         <argument>${app.description}</argument>
                                         <argument>--copyright</argument>
-                                        <argument>© ${app.vendor}</argument>
+                                        <argument>(c) ${app.vendor}</argument>
                                         <argument>--runtime-image</argument>
                                         <argument>${project.build.directory}/${project.jlink.image.name}</argument>
                                         <argument>--module</argument>
                                         <argument>${module.name}/${main.class}</argument>
                                         <argument>--dest</argument>
                                         <argument>${project.build.directory}/dist</argument>
+                                        <argument>--verbose</argument>
                                         <argument>--java-options</argument>
                                         <argument>-Dfile.encoding=UTF-8</argument>
                                         <argument>--icon</argument>
@@ -239,19 +251,20 @@
                                         <argument>--name</argument>
                                         <argument>${app.name}</argument>
                                         <argument>--app-version</argument>
-                                        <argument>${project.version}</argument>
+                                        <argument>${jpackage.app.version}</argument>
                                         <argument>--vendor</argument>
                                         <argument>${app.vendor}</argument>
                                         <argument>--description</argument>
                                         <argument>${app.description}</argument>
                                         <argument>--copyright</argument>
-                                        <argument>© ${app.vendor}</argument>
+                                        <argument>(c) ${app.vendor}</argument>
                                         <argument>--runtime-image</argument>
                                         <argument>${project.build.directory}/${project.jlink.image.name}</argument>
                                         <argument>--module</argument>
                                         <argument>${module.name}/${main.class}</argument>
                                         <argument>--dest</argument>
                                         <argument>${project.build.directory}/dist</argument>
+                                        <argument>--verbose</argument>
                                         <argument>--java-options</argument>
                                         <argument>-Dfile.encoding=UTF-8</argument>
                                         <argument>--license-file</argument>
@@ -305,19 +318,20 @@
                                         <argument>--name</argument>
                                         <argument>${app.name}</argument>
                                         <argument>--app-version</argument>
-                                        <argument>${project.version}</argument>
+                                        <argument>${jpackage.app.version}</argument>
                                         <argument>--vendor</argument>
                                         <argument>${app.vendor}</argument>
                                         <argument>--description</argument>
                                         <argument>${app.description}</argument>
                                         <argument>--copyright</argument>
-                                        <argument>© ${app.vendor}</argument>
+                                        <argument>(c) ${app.vendor}</argument>
                                         <argument>--runtime-image</argument>
                                         <argument>${project.build.directory}/${project.jlink.image.name}</argument>
                                         <argument>--module</argument>
                                         <argument>${module.name}/${main.class}</argument>
                                         <argument>--dest</argument>
                                         <argument>${project.build.directory}/dist</argument>
+                                        <argument>--verbose</argument>
                                         <argument>--java-options</argument>
                                         <argument>-Dfile.encoding=UTF-8</argument>
                                         <argument>--license-file</argument>
@@ -370,19 +384,20 @@
                                         <argument>--name</argument>
                                         <argument>${app.name}</argument>
                                         <argument>--app-version</argument>
-                                        <argument>${project.version}</argument>
+                                        <argument>${jpackage.app.version}</argument>
                                         <argument>--vendor</argument>
                                         <argument>${app.vendor}</argument>
                                         <argument>--description</argument>
                                         <argument>${app.description}</argument>
                                         <argument>--copyright</argument>
-                                        <argument>© ${app.vendor}</argument>
+                                        <argument>(c) ${app.vendor}</argument>
                                         <argument>--runtime-image</argument>
                                         <argument>${project.build.directory}/${project.jlink.image.name}</argument>
                                         <argument>--module</argument>
                                         <argument>${module.name}/${main.class}</argument>
                                         <argument>--dest</argument>
                                         <argument>${project.build.directory}/dist</argument>
+                                        <argument>--verbose</argument>
                                         <argument>--java-options</argument>
                                         <argument>-Dfile.encoding=UTF-8</argument>
                                         <argument>--icon</argument>
@@ -421,19 +436,20 @@
                                         <argument>--name</argument>
                                         <argument>${app.name}</argument>
                                         <argument>--app-version</argument>
-                                        <argument>${project.version}</argument>
+                                        <argument>${jpackage.app.version}</argument>
                                         <argument>--vendor</argument>
                                         <argument>${app.vendor}</argument>
                                         <argument>--description</argument>
                                         <argument>${app.description}</argument>
                                         <argument>--copyright</argument>
-                                        <argument>© ${app.vendor}</argument>
+                                        <argument>(c) ${app.vendor}</argument>
                                         <argument>--runtime-image</argument>
                                         <argument>${project.build.directory}/${project.jlink.image.name}</argument>
                                         <argument>--module</argument>
                                         <argument>${module.name}/${main.class}</argument>
                                         <argument>--dest</argument>
                                         <argument>${project.build.directory}/dist</argument>
+                                        <argument>--verbose</argument>
                                         <argument>--java-options</argument>
                                         <argument>-Dfile.encoding=UTF-8</argument>
                                         <argument>--license-file</argument>
@@ -445,6 +461,8 @@
                                         <argument>--win-menu-group</argument>
                                         <argument>${app.name}</argument>
                                         <argument>--win-shortcut</argument>
+                                        <argument>--win-upgrade-uuid</argument>
+                                        <argument>a1b2c3d4-e5f6-7890-abcd-ef1234567890</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
@@ -459,6 +477,8 @@
             <properties>
                 <skip.jpackage>false</skip.jpackage>
                 <jpackage.icon>${project.basedir}/deploy/app-icon.icns</jpackage.icon>
+                <!-- macOS CFBundleVersion allows only 1..3 numbers; keep 3-part -->
+                <jpackage.app.version>${project.version}</jpackage.app.version>
             </properties>
             <build>
                 <plugins>
@@ -478,19 +498,20 @@
                                         <argument>--name</argument>
                                         <argument>${app.name}</argument>
                                         <argument>--app-version</argument>
-                                        <argument>${project.version}</argument>
+                                        <argument>${jpackage.app.version}</argument>
                                         <argument>--vendor</argument>
                                         <argument>${app.vendor}</argument>
                                         <argument>--description</argument>
                                         <argument>${app.description}</argument>
                                         <argument>--copyright</argument>
-                                        <argument>© ${app.vendor}</argument>
+                                        <argument>(c) ${app.vendor}</argument>
                                         <argument>--runtime-image</argument>
                                         <argument>${project.build.directory}/${project.jlink.image.name}</argument>
                                         <argument>--module</argument>
                                         <argument>${module.name}/${main.class}</argument>
                                         <argument>--dest</argument>
                                         <argument>${project.build.directory}/dist</argument>
+                                        <argument>--verbose</argument>
                                         <argument>--java-options</argument>
                                         <argument>-Dfile.encoding=UTF-8</argument>
                                         <argument>--icon</argument>

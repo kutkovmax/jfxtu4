@@ -186,8 +186,11 @@ public class MachineController {
         mainContent.setManaged(!isHelpVisible);
 
         helpContainer.setVisible(isHelpVisible);
+        helpContainer.setManaged(isHelpVisible);
 
         helpButton.setText(isHelpVisible ? "✕" : "?");
+
+        rootBox.requestLayout();
     }
 
     private void toggleLanguage() {
@@ -428,7 +431,7 @@ public class MachineController {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(bundle.getString("dialog.save.title"));
         fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter(bundle.getString("dialog.file.filter") + " (*.tu4)", "*.tu4"),
+                new FileChooser.ExtensionFilter(bundle.getString("dialog.file.filter") + " (*.tu4, *.txt)", "*.tu4", "*.txt"),
                 new FileChooser.ExtensionFilter(bundle.getString("dialog.all.files"), "*.*")
         );
         fileChooser.setInitialFileName("program.tu4");
@@ -437,7 +440,8 @@ public class MachineController {
         File file = fileChooser.showSaveDialog(stage);
 
         if (file != null) {
-            if (!file.getName().toLowerCase().endsWith(".tu4")) {
+            String name = file.getName().toLowerCase();
+            if (!name.endsWith(".tu4") && !name.endsWith(".txt")) {
                 file = new File(file.getAbsolutePath() + ".tu4");
             }
             try {
@@ -454,7 +458,7 @@ public class MachineController {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(bundle.getString("dialog.open.title"));
         fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter(bundle.getString("dialog.file.filter") + " (*.tu4)", "*.tu4"),
+                new FileChooser.ExtensionFilter(bundle.getString("dialog.file.filter") + " (*.tu4, *.txt)", "*.tu4", "*.txt"),
                 new FileChooser.ExtensionFilter(bundle.getString("dialog.all.files"), "*.*")
         );
 

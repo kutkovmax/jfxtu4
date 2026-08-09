@@ -93,8 +93,12 @@
     -fx-font-family: "JetBrains Mono", "Consolas", "Courier New", monospace;
     -fx-font-size: 15px;
     -fx-control-inner-background: #1e1e1e;
-    -fx-background-color: #555555, #1e1e1e;
-    -fx-background-insets: 0, 1;
+    -fx-background-color: #1e1e1e;
+    -fx-background-radius: 0;
+    -fx-border-color: #555555;
+    -fx-border-width: 1px;
+    -fx-border-radius: 0;
+    -fx-padding: 6 8 6 8;
     -fx-highlight-text-fill: #ffffff;
 }
 
@@ -107,11 +111,15 @@
 }
 
 .code-editor:focused {
-    -fx-background-color: #777777, #1e1e1e;
+    -fx-border-color: #777777;
 }
 
 .code-editor .text {
     -fx-fill: #ffffff;
+}
+
+.code-editor .content {
+    -fx-background-color: #1e1e1e;
 }
 
 .help-scroll {

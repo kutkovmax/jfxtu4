@@ -46,7 +46,7 @@
         <TextArea fx:id="programInput" styleClass="code-editor" VBox.vgrow="ALWAYS" />
     </VBox>
 
-    <ScrollPane fx:id="helpContainer" fitToWidth="true" visible="false" managed="${helpContainer.visible}" VBox.vgrow="ALWAYS" styleClass="help-scroll">
+    <ScrollPane fx:id="helpContainer" fitToWidth="true" visible="false" managed="false" VBox.vgrow="ALWAYS" styleClass="help-scroll">
         <VBox spacing="10">
             <padding>
                 <Insets top="10" right="10" bottom="10" left="10"/>

@@ -444,18 +444,72 @@ jobs:
       - name: Ensure WiX Toolset (for EXE installer)
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
+          function Add-ToGithubPath([string]$Dir) {
+            if (Test-Path $Dir) {
+              Write-Host "Adding to GITHUB_PATH: $Dir"
+              $Dir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            }
+          }
+
+          # 1) Check if WiX is already on PATH (e.g. default windows-latest image)
           $light = Get-Command light.exe -ErrorAction SilentlyContinue
-          if ($light) {
-            Write-Host "WiX already available: $($light.Source)"
+          $candle = Get-Command candle.exe -ErrorAction SilentlyContinue
+          if ($light -and $candle) {
+            Write-Host "WiX already on PATH: light=$($light.Source), candle=$($candle.Source)"
             exit 0
           }
-          Write-Host "WiX not found, installing via choco..."
-          choco install -y wixtoolset
-          if ($LASTEXITCODE -ne 0) {
-            $env:PATH += ";C:\\Program Files (x86)\\WiX Toolset v3.11\\bin"
+
+          # 2) Install .NET Framework 3.5 (WiX 3.x requires it; choco wixtoolset depends on it)
+          Write-Host "Enabling .NET Framework 3.5 (WiX requirement)..."
+          try {
+            Enable-WindowsOptionalFeature -Online -FeatureName NetFx3 -All -NoRestart -ErrorAction SilentlyContinue | Out-Null
+          } catch {
+            Write-Host "NetFx3 enablement via DISM failed or not needed, continuing anyway..."
           }
+
+          # 3) Install WiX via chocolatey
+          Write-Host "WiX not found on PATH, installing via choco..."
+          choco install -y wixtoolset --no-progress
+
+          # 4) Locate WiX bin dir and PERMANENTLY add to GITHUB_PATH (survives across steps)
+          $candidates = @(
+            "C:\Program Files (x86)\WiX Toolset v3.14\bin",
+            "C:\Program Files (x86)\WiX Toolset v3.11\bin",
+            "C:\Program Files\WiX Toolset v3.14\bin",
+            "C:\Program Files\WiX Toolset v3.11\bin",
+            "C:\ProgramData\chocolatey\lib\wixtoolset\tools\bin"
+          )
+          $found = $false
+          foreach ($p in $candidates) {
+            if ((Test-Path $p) -and (Test-Path (Join-Path $p "light.exe"))) {
+              Add-ToGithubPath $p
+              $found = $true
+            }
+          }
+
+          # 5) Fallback: search Program Files for any WiX Toolset *\bin
+          if (-not $found) {
+            Write-Host "Standard paths not found, performing a search..."
+            Get-ChildItem "C:\Program Files*" -Recurse -Filter "light.exe" -ErrorAction SilentlyContinue |
+              Select-Object -First 1 -ExpandProperty Directory | ForEach-Object {
+                Add-ToGithubPath $_.FullName
+                $found = $true
+              }
+          }
+
+          if (-not $found) {
+            Write-Error "WiX Toolset bin directory (with light.exe/candle.exe) not found after install!"
+            exit 1
+          }
+
+          # 6) Refresh current process PATH so verification works in THIS step too
+          $env:PATH = [System.Environment]::GetEnvironmentVariable("Path","Machine") +
+                      ";" + [System.Environment]::GetEnvironmentVariable("Path","User") +
+                      ";" + $env:GITHUB_PATH
           $light = Get-Command light.exe -ErrorAction Stop
-          Write-Host "WiX installed: $($light.Source)"
+          $candle = Get-Command candle.exe -ErrorAction Stop
+          Write-Host "SUCCESS. WiX installed: light=$($light.Source), candle=$($candle.Source)"
 
       - name: Compute version label
         id: version
@@ -502,9 +556,24 @@ jobs:
       # ------------------------------------------------------------------
       #  2) .EXE installer
       # ------------------------------------------------------------------
+      - name: Verify WiX toolchain before EXE build
+        shell: pwsh
+        run: |
+          $light = Get-Command light.exe -ErrorAction SilentlyContinue
+          $candle = Get-Command candle.exe -ErrorAction SilentlyContinue
+          if (-not $light -or -not $candle) {
+            Write-Error "FATAL: light.exe or candle.exe not found on PATH right before build!"
+            Write-Host "Current PATH: $env:PATH"
+            exit 1
+          }
+          Write-Host "OK: light=$($light.Source)"
+          Write-Host "OK: candle=$($candle.Source)"
+          & light.exe -nologo
+          Write-Host "light.exe responds OK"
+
       - name: Build EXE installer
         shell: bash
-        run: mvn -B package -P package-windows-exe -Dpkg.type=exe -DskipTests
+        run: mvn -B package -P package-windows-exe -DskipTests
 
       - name: Collect EXE
         id: collect-exe

@@ -60,6 +60,9 @@ public class TapeView extends Canvas {
             ensureCursorVisible();
             needsRedraw = true;
         });
+        heightProperty().addListener(e -> {
+            needsRedraw = true;
+        });
 
         focusedProperty().addListener((obs, oldVal, isFocused) -> {
             if (!isFocused) {
@@ -434,5 +437,20 @@ public class TapeView extends Canvas {
         selectionAnchor = -1;
         ensureCursorVisible();
         needsRedraw = true;
+    }
+
+    @Override
+    public boolean isResizable() {
+        return true;
+    }
+
+    @Override
+    public double prefWidth(double height) {
+        return getWidth();
+    }
+
+    @Override
+    public double prefHeight(double width) {
+        return getHeight();
     }
 }
