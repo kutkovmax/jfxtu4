@@ -6,47 +6,51 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Priority?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox fx:id="rootBox"   styleClass="main-container" spacing="12" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ru.kutkovmax.jfxtu4.controller.MachineController">
+<VBox fx:id="rootBox" styleClass="main-container" spacing="12" minWidth="0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ru.kutkovmax.jfxtu4.controller.MachineController">
     <padding>
         <Insets top="12" right="12" bottom="12" left="12"/>
     </padding>
 
-    <HBox alignment="CENTER_LEFT" spacing="8">
-        <Label fx:id="appTitleLabel" styleClass="app-title" text="%app.title" />
+    <HBox alignment="CENTER_LEFT" spacing="8" minWidth="0" fillHeight="true">
+        <Label fx:id="appTitleLabel" styleClass="app-title" text="%app.title" minWidth="0" />
 
-        <Button fx:id="openButton" styleClass="tool-button" text="%btn.open" />
-        <Button fx:id="saveButton" styleClass="tool-button" text="%btn.save" />
+        <Button fx:id="openButton" styleClass="tool-button" text="%btn.open" minWidth="-Infinity" />
+        <Button fx:id="saveButton" styleClass="tool-button" text="%btn.save" minWidth="-Infinity" />
 
-        <Region HBox.hgrow="ALWAYS" />
-        <Button fx:id="langButton" styleClass="tool-button" text="RU" />
-        <Button fx:id="helpButton" styleClass="tool-button" text="?" />
+        <Region HBox.hgrow="ALWAYS" minWidth="0" />
+        <Button fx:id="langButton" styleClass="tool-button" text="RU" minWidth="-Infinity" />
+        <Button fx:id="helpButton" styleClass="tool-button" text="?" minWidth="-Infinity" />
     </HBox>
 
-    <VBox fx:id="mainContent" spacing="12" VBox.vgrow="ALWAYS">
-        <StackPane fx:id="tapeContainer" styleClass="tape-container" />
+    <VBox fx:id="mainContent" spacing="12" VBox.vgrow="ALWAYS" minWidth="0">
+        <StackPane fx:id="tapeContainer" styleClass="tape-container" minHeight="50" maxHeight="80" minWidth="0" />
 
-        <HBox alignment="CENTER_RIGHT" spacing="8">
-            <Region HBox.hgrow="ALWAYS" />
-            <Button fx:id="backToEditButton" styleClass="action-button" text="%btn.back" visible="false" managed="${backToEditButton.visible}" />
-            <Button fx:id="instantButton" styleClass="action-button" text="%btn.instant" visible="false" managed="${instantButton.visible}" />
-            <Button fx:id="quickButton" styleClass="action-button" text="%btn.quick" visible="false" managed="${quickButton.visible}" />
-            <Button fx:id="stepButton" styleClass="action-button" text="%btn.step" visible="false" managed="${stepButton.visible}" />
-            <Button fx:id="startButton" styleClass="action-button, start-button" text="%btn.start" managed="${startButton.visible}" />
+        <FlowPane alignment="CENTER_RIGHT" hgap="8" vgap="6" minWidth="0" columnHalignment="RIGHT">
+            <VBox.margin>
+                <Insets top="0" right="0" bottom="0" left="0"/>
+            </VBox.margin>
+            <Button fx:id="backToEditButton" styleClass="action-button" text="%btn.back" visible="false" managed="${backToEditButton.visible}" minWidth="-Infinity" />
+            <Button fx:id="instantButton" styleClass="action-button" text="%btn.instant" visible="false" managed="${instantButton.visible}" minWidth="-Infinity" />
+            <Button fx:id="quickButton" styleClass="action-button" text="%btn.quick" visible="false" managed="${quickButton.visible}" minWidth="-Infinity" />
+            <Button fx:id="stepButton" styleClass="action-button" text="%btn.step" visible="false" managed="${stepButton.visible}" minWidth="-Infinity" />
+            <Button fx:id="startButton" styleClass="action-button, start-button" text="%btn.start" managed="${startButton.visible}" minWidth="-Infinity" />
+        </FlowPane>
+
+        <HBox alignment="CENTER_LEFT" minHeight="24" minWidth="0">
+            <Label fx:id="statusLabel" styleClass="status-label" wrapText="true" maxWidth="Infinity" HBox.hgrow="ALWAYS" />
         </HBox>
 
-        <HBox alignment="CENTER_LEFT" minHeight="24">
-            <Label fx:id="statusLabel" styleClass="status-label" wrapText="true" />
-        </HBox>
-
-        <TextArea fx:id="programInput" styleClass="code-editor" VBox.vgrow="ALWAYS" />
+        <TextArea fx:id="programInput" styleClass="code-editor" VBox.vgrow="ALWAYS" minWidth="0" maxWidth="Infinity" minHeight="100" />
     </VBox>
 
-    <ScrollPane fx:id="helpContainer" fitToWidth="true" visible="false" managed="false" VBox.vgrow="ALWAYS" styleClass="help-scroll">
+    <ScrollPane fx:id="helpContainer" fitToWidth="true" visible="false" managed="false" VBox.vgrow="ALWAYS" styleClass="help-scroll" minWidth="0">
         <VBox spacing="10">
             <padding>
                 <Insets top="10" right="10" bottom="10" left="10"/>
